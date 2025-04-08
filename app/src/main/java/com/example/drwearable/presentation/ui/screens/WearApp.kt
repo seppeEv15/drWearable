@@ -1,7 +1,6 @@
 package com.example.drwearable.presentation.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
@@ -10,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -20,7 +18,7 @@ import androidx.wear.compose.material.*
 import com.example.drwearable.presentation.network.checkApiConnection
 import com.example.drwearable.presentation.theme.DrWearableTheme
 import com.example.drwearable.presentation.ui.components.Greeting
-import kotlin.math.abs
+import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
 
 @Composable
 fun WearApp(greetingName: String) {
@@ -86,53 +84,3 @@ fun WearApp(greetingName: String) {
         }
     }
 }
-
-@Composable
-fun VerticalSwipeDetector(
-    onSwipeUp: () -> Unit,
-    onSwipeDown: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    var swipeOffset by remember { mutableFloatStateOf(0f) }
-    var swipeDirection by remember { mutableStateOf<String?>(null) }
-
-    val swipeThreshold = 30f  // Lower threshold for slower swipes
-    val minSwipeDistance = 60f  // Minimum distance before swipe is triggered
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragEnd = {
-                        // Trigger swipe if the distance exceeds the threshold
-                        if (abs(swipeOffset) > minSwipeDistance) {
-                            when (swipeDirection) {
-                                "up" -> onSwipeUp()
-                                "down" -> onSwipeDown()
-                            }
-                        }
-                        // Reset swipe state
-                        swipeOffset = 0f
-                        swipeDirection = null
-                    },
-                    onVerticalDrag = { change, dragAmount ->
-                        change.consume()
-                        swipeOffset += dragAmount
-
-                        // Adjust direction based on drag amount
-                        swipeDirection = when {
-                            swipeOffset < -swipeThreshold -> "up"
-                            swipeOffset > swipeThreshold -> "down"
-                            else -> null
-                        }
-                    }
-                )
-            }
-    ) {
-        content()
-    }
-}
-
-
-
