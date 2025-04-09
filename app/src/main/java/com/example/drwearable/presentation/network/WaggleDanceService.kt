@@ -1,6 +1,11 @@
 package com.example.drwearable.presentation.network
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import okhttp3.Call
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -9,6 +14,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.Query
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 
 data class SessionIdResponse(val sessionId: String)
@@ -43,6 +50,57 @@ object WaggleDanceApi {
 
     val service: WaggleDanceService by lazy {
         retrofit.create(WaggleDanceService::class.java)
+    }
+}
+
+class SseClient(
+    private val sessionId: String,
+    private val apiUrl: String,
+    private val onMessage: (String) -> Unit,
+    private val onOpen: () -> Unit,
+    private val onError: (Throwable) -> Unit,
+) {
+    private var call: Call? = null
+    private val client = OkHttpClient()
+
+    fun start() {
+        val request = Request.Builder()
+            .url("$apiUrl/server2client?sessionId=$sessionId")
+            .build()
+
+        call = client.newCall(request)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = call!!.execute()
+                if (!response.isSuccessful) throw Exception("Unsuccessful response: ${response.code}")
+
+                onOpen()
+
+                val reader = BufferedReader(InputStreamReader(response.body?.byteStream()))
+                var line: String?
+                val messageBuilder = StringBuilder()
+
+                while (reader.readLine().also { line = it } != null) {
+                    val currentLine = line // Create a local immutable copy
+                    if (currentLine?.startsWith("data:") == true) {
+                        messageBuilder.append(currentLine.substring(5).trim())
+                    }
+                    if (currentLine?.isEmpty() == true) {
+                        val fullMessage = messageBuilder.toString()
+                        messageBuilder.clear()
+
+                        onMessage(fullMessage)
+                    }
+                }
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
+    fun stop() {
+        call?.cancel()
     }
 }
 
