@@ -62,6 +62,8 @@ dependencies {
     implementation(libs.retrofit.scalars)
     implementation(libs.jsoup)
     implementation(libs.compose.foundation)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.sse)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)
