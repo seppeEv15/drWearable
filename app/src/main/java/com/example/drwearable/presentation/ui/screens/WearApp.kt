@@ -1,6 +1,6 @@
 package com.example.drwearable.presentation.ui.screens
-
 import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.*
@@ -23,14 +24,19 @@ import com.example.drwearable.presentation.network.checkApiConnection
 import com.example.drwearable.presentation.theme.DrWearableTheme
 import com.example.drwearable.presentation.ui.components.Greeting
 import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import retrofit2.Response
 
 @Composable
 fun WearApp(greetingName: String) {
+    var playerData = JsonObject()
+    var firstName by remember { mutableStateOf("") }
     var connectionsStatus by remember { mutableStateOf("Connecting...") }
     var pingColor by remember { mutableStateOf(Color.Gray) }
     var statusText by remember { mutableStateOf("") }
@@ -68,6 +74,17 @@ fun WearApp(greetingName: String) {
                 apiUrl = "http://10.129.10.42:5050", // your BASE_URL
 
                 onMessage = { message ->
+                    if (message.contains("drMemberCPPlayerData")) {
+                        val jsonParser = JsonParser()
+                        val jsonObject = jsonParser.parse(message).asJsonObject
+                        println(jsonObject)
+                        println(jsonObject::class.simpleName)
+                        playerData = jsonObject
+                        val payload = playerData.get("payload").asJsonObject
+                        var player = payload.get("player").asJsonObject
+                        firstName = player.get("firstName").toString()
+                    }
+
                     if (message.contains("test")) {
                         lastIsAliveTime.value = System.currentTimeMillis()
                     }
@@ -97,7 +114,7 @@ fun WearApp(greetingName: String) {
                             } catch (e: Exception) {
                                 Log.e("SSE_RETRY", "Retry failed: ${e.localizedMessage}")
                             }
-                            kotlinx.coroutines.delay(5000)
+                            delay(5000)
                         }
                     }
                 }
@@ -144,8 +161,20 @@ fun WearApp(greetingName: String) {
 //                            .padding(start = 4.dp)
 //                    )
 
-                    Greeting(greetingName = greetingName)
+                 //   Greeting(greetingName = greetingName)
+
+
+                    Image(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(80.dp)
+                            .padding(10.dp),
+                        painter = painterResource(id = R.drawable.bwinoostende),
+                        contentDescription = "Casino logo"
+                    )
+
                     StartButton()
+
 
 
 
@@ -171,7 +200,15 @@ fun WearApp(greetingName: String) {
                         )
                     )
 
-
+/*                    BasicText(
+                        text = firstName,
+                        modifier = Modifier.padding(top = 4.dp),
+                        style = TextStyle(
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    )*/
 
 
 
@@ -192,12 +229,13 @@ fun WearApp(greetingName: String) {
     }
 }
 
+@Preview
 @Composable
 fun StartButton() {
     Button(
         onClick = {  Log.d("ROUTE", "TO GATES") },
         modifier = Modifier
-            .padding(16.dp)
+            .padding(25.dp)
             .fillMaxWidth(),
         shape = RoundedCornerShape(15.dp),
         enabled = true,

@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         setTheme(android.R.style.Theme_DeviceDefault)
         setContent {
             Gate()
-         //   WearApp("Seppe")
+            // WearApp("Seppe")
         }
     }
 }
