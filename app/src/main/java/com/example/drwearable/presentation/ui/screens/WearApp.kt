@@ -3,19 +3,19 @@ package com.example.drwearable.presentation.ui.screens
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.*
+import com.example.drwearable.R
 import com.example.drwearable.presentation.network.SessionIdResponse
 import com.example.drwearable.presentation.network.SseClient
 import com.example.drwearable.presentation.network.WaggleDanceApi
@@ -23,13 +23,11 @@ import com.example.drwearable.presentation.network.checkApiConnection
 import com.example.drwearable.presentation.theme.DrWearableTheme
 import com.example.drwearable.presentation.ui.components.Greeting
 import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
-import kotlin.math.log
 
 @Composable
 fun WearApp(greetingName: String) {
@@ -93,7 +91,7 @@ fun WearApp(greetingName: String) {
                         while (connectionsStatus != "Connected") {
                             try {
                                 sseClient?.stop()
-                                kotlinx.coroutines.delay(5000)
+                                delay(5000)
                                 sseClient?.start()
                                 Log.d("SSE_RETRY", "Retrying SSE connection...")
                             } catch (e: Exception) {
@@ -118,7 +116,7 @@ fun WearApp(greetingName: String) {
                 connectionsStatus = "Connected"
                 pingColor = Color.Green
             }
-            kotlinx.coroutines.delay(1000)
+            delay(1000)
         }
     }
 
@@ -133,7 +131,7 @@ fun WearApp(greetingName: String) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xFF570F82))
+                        .background(Color(0x00000000))
                         .padding(8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -147,6 +145,9 @@ fun WearApp(greetingName: String) {
 //                    )
 
                     Greeting(greetingName = greetingName)
+                    StartButton()
+
+
 
 //                    BasicText(
 //                        text = connectionsStatus,
@@ -170,7 +171,13 @@ fun WearApp(greetingName: String) {
                         )
                     )
 
-                    BasicText(
+
+
+
+
+
+
+/*                    BasicText(
                         text = if (connectionsStatus == "Connected") "✅ Connected to SSE" else "❌ SSE Not Connected",
                         modifier = Modifier.padding(top = 4.dp),
                         style = TextStyle(
@@ -178,12 +185,28 @@ fun WearApp(greetingName: String) {
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center
                         )
-                    )
+                    )*/
                 }
             }
         }
     }
 }
+
+@Composable
+fun StartButton() {
+    Button(
+        onClick = {  Log.d("ROUTE", "TO GATES") },
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(15.dp),
+        enabled = true,
+    ) {
+        Text(text = "Start")
+    }
+}
+
+
 
 suspend fun testApiCall(): Response<SessionIdResponse> {
     val sessionBody = """{"cmd": "newSession"}"""

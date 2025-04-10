@@ -28,9 +28,10 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         setTheme(android.R.style.Theme_DeviceDefault)
-
         setContent {
-            WearApp("Seppe")
+            Gate()
+         //   WearApp("Seppe")
         }
     }
 }
+

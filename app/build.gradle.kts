@@ -64,6 +64,7 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.okhttp)
     implementation(libs.okhttp.sse)
+    implementation(libs.navigation.runtime.ktx)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)
