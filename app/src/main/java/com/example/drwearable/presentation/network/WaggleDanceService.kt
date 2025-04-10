@@ -1,5 +1,6 @@
 package com.example.drwearable.presentation.network
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -8,6 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
+import org.json.JSONObject
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -24,18 +26,18 @@ interface WaggleDanceService {
     @POST("client2server")
     suspend fun getSessionId(@Body body: RequestBody): Response<SessionIdResponse>
 
-    @POST("client2server")
-    suspend fun sendMessage(@Body body: RequestBody): Response<ResponseBody>
+//    @POST("client2server")
+//    suspend fun sendMessage(@Body body: RequestBody): Response<ResponseBody>
 
-    @POST("client2server")
-    suspend fun sendMessageWithSession(
-        @Query("sessionId") sessionId: String,
-        @Body body: RequestBody
-    ): Response<ResponseBody>
+//    @POST("client2server")
+//    suspend fun sendMessageWithSession(
+//        @Query("sessionId") sessionId: String,
+//        @Body body: RequestBody
+//    ): Response<ResponseBody>
 }
 
 object WaggleDanceApi {
-    private const val BASE_URL = "http://10.129.100.80:5050"
+    private const val BASE_URL = "http://10.129.10.42:5050"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -78,11 +80,11 @@ class SseClient(
                 onOpen()
 
                 val reader = BufferedReader(InputStreamReader(response.body?.byteStream()))
-                var line: String?
                 val messageBuilder = StringBuilder()
+                var line: String?
 
                 while (reader.readLine().also { line = it } != null) {
-                    val currentLine = line // Create a local immutable copy
+                    val currentLine = line
                     if (currentLine?.startsWith("data:") == true) {
                         messageBuilder.append(currentLine.substring(5).trim())
                     }
@@ -94,6 +96,7 @@ class SseClient(
                     }
                 }
             } catch (e: Exception) {
+                Log.e("SSE", "Exception in SSE: ${e.localizedMessage}")
                 onError(e)
             }
         }
@@ -103,4 +106,11 @@ class SseClient(
         call?.cancel()
     }
 }
+
+//  Optional:  clean up the SSE client when the composable is disposed
+//  DisposableEffect(Unit) {
+//      onDispose {
+//          sseClient?.stop()
+//      }
+//  }
 

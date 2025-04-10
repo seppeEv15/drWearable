@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.Color
 
 fun checkApiConnection(
     pingColor: (Color) -> Unit,
-    connectionsStatus: (String) -> Unit
 ) {
     CoroutineScope(Dispatchers.IO).launch {
         while (true) {
@@ -18,13 +17,13 @@ fun checkApiConnection(
                 val response = Jsoup.connect(drMember4ApiLink).get()
                 val title = response.title()
 
-                connectionsStatus(if (title.isNotEmpty()) {
-                    "Connected: $title"
-                } else {
-                    "Failed: No Title Found"
-                })
+//                connectionsStatus(if (title.isNotEmpty()) {
+//                    "Connected: $title"
+//                } else {
+//                    "Failed: No Title Found"
+//                })
             } catch (e: Exception) {
-                connectionsStatus("Failed to connect: ${e.message}")
+//                connectionsStatus("Failed to connect: ${e.message}")
             }
 
             delay(500)

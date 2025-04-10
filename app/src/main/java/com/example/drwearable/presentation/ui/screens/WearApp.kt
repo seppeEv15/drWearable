@@ -23,10 +23,13 @@ import com.example.drwearable.presentation.network.checkApiConnection
 import com.example.drwearable.presentation.theme.DrWearableTheme
 import com.example.drwearable.presentation.ui.components.Greeting
 import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
+import kotlinx.coroutines.launch
 import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
+import kotlin.math.log
 
 @Composable
 fun WearApp(greetingName: String) {
@@ -35,13 +38,15 @@ fun WearApp(greetingName: String) {
     var statusText by remember { mutableStateOf("") }
     var sessionId by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
+    val lastIsAliveTime = remember { mutableStateOf(System.currentTimeMillis()) }
     var sseClient by remember { mutableStateOf<SseClient?>(null) }
 
+    val scope = rememberCoroutineScope()
+
+    // Check API connection and establish session
     LaunchedEffect(Unit) {
         checkApiConnection(
             pingColor = { newColor -> pingColor = newColor },
-            connectionsStatus = { newStatus -> connectionsStatus = newStatus }
         )
 
         try {
@@ -56,31 +61,64 @@ fun WearApp(greetingName: String) {
         }
     }
 
+    // Handle SSE connection
     LaunchedEffect(sessionId) {
         sessionId?.let { id ->
             sseClient?.stop() // Stop previous connection
             sseClient = SseClient(
                 sessionId = id,
-                apiUrl = "http://10.129.100.80:5050", // your BASE_URL
+                apiUrl = "http://10.129.10.42:5050", // your BASE_URL
+
                 onMessage = { message ->
-                    Log.d("SSE", "Received message: $message")
-                    // Example: only update statusText if it's not a spammy type
-                    if (!listOf("currentTime", "sync", "AreYouThere", "test").any { message.contains(it) }) {
-                        statusText = message
+                    if (message.contains("test")) {
+                        lastIsAliveTime.value = System.currentTimeMillis()
+                    }
+
+                    val ignoredCmds = listOf("currentTime", "sync", "AreYouThere", "test")
+                    if (!ignoredCmds.any { message.contains(it) }) {
+                        Log.d("SSE", "Received message: $message")
                     }
                 },
+
                 onOpen = {
                     Log.d("SSE", "Connection opened")
                     connectionsStatus = "Connected"
-                    pingColor = Color.Green
                 },
                 onError = { error ->
                     Log.e("SSE", "Connection error", error)
                     connectionsStatus = "Disconnected"
                     pingColor = Color.Red
+
+                    scope.launch {
+                        while (connectionsStatus != "Connected") {
+                            try {
+                                sseClient?.stop()
+                                kotlinx.coroutines.delay(5000)
+                                sseClient?.start()
+                                Log.d("SSE_RETRY", "Retrying SSE connection...")
+                            } catch (e: Exception) {
+                                Log.e("SSE_RETRY", "Retry failed: ${e.localizedMessage}")
+                            }
+                            kotlinx.coroutines.delay(5000)
+                        }
+                    }
                 }
             )
             sseClient?.start()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val timeSinceLastPing = System.currentTimeMillis() - lastIsAliveTime.value
+            if (timeSinceLastPing > 10000 && connectionsStatus != "Disconnected") {
+                connectionsStatus = "Disconnected"
+                pingColor = Color.Red
+            } else if (timeSinceLastPing <= 10000 && connectionsStatus != "Connected") {
+                connectionsStatus = "Connected"
+                pingColor = Color.Green
+            }
+            kotlinx.coroutines.delay(1000)
         }
     }
 
@@ -100,27 +138,28 @@ fun WearApp(greetingName: String) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(pingColor)
-                            .padding(start = 4.dp)
-                    )
+//                    Box(
+//                        modifier = Modifier
+//                            .size(10.dp)
+//                            .clip(CircleShape)
+//                            .background(pingColor)
+//                            .padding(start = 4.dp)
+//                    )
 
                     Greeting(greetingName = greetingName)
 
-                    BasicText(
-                        text = connectionsStatus,
-                        modifier = Modifier.padding(top = 4.dp),
-                        style = TextStyle(
-                            color = Color.Red,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    )
+//                    BasicText(
+//                        text = connectionsStatus,
+//                        modifier = Modifier.padding(top = 4.dp),
+//                        style = TextStyle(
+//                            color = Color.Red,
+//                            fontWeight = FontWeight.Bold,
+//                            fontSize = 12.sp,
+//                            textAlign = TextAlign.Center
+//                        )
+//                    )
 
+                    // Display error message if available
                     BasicText(
                         text = statusText,
                         modifier = Modifier.padding(top = 4.dp),
@@ -147,24 +186,22 @@ fun WearApp(greetingName: String) {
 }
 
 suspend fun testApiCall(): Response<SessionIdResponse> {
-    val sessionBody = RequestBody.create(
-        "application/json".toMediaTypeOrNull(),
-        """{"cmd": "newSession"}"""
-    )
+    val sessionBody = """{"cmd": "newSession"}"""
+        .toRequestBody("application/json".toMediaTypeOrNull())
 
     try {
         val response = WaggleDanceApi.service.getSessionId(sessionBody)
-        Log.d("API_CALL", "Response: Session established. ID: ${response.body()?.sessionId}")
-        return response
+        val body = response.body()
+
+        if (response.isSuccessful && body != null) {
+            Log.d("API_CALL", "Session ID: ${body.sessionId}")
+            return response
+        } else {
+            Log.e("API_CALL", "Invalid response or empty body. Code: ${response.code()}")
+            throw Exception("Invalid response or empty body")
+        }
     } catch (e: Exception) {
         Log.e("API_CALL", "Error: Could not establish session: ${e.localizedMessage}")
         throw e
     }
 }
-
-//  Optional:  clean up the SSE client when the composable is disposed
-//  DisposableEffect(Unit) {
-//      onDispose {
-//          sseClient?.stop()
-//      }
-//  }
