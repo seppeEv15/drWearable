@@ -35,7 +35,7 @@ interface WaggleDanceService {
 }
 
 object WaggleDanceApi {
-    private const val BASE_URL = "http://10.129.100.80:5050"
+    private const val BASE_URL = "http://10.129.10.42:5050"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)

@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.*
@@ -61,7 +62,7 @@ fun WearApp(greetingName: String) {
             sseClient?.stop() // Stop previous connection
             sseClient = SseClient(
                 sessionId = id,
-                apiUrl = "http://10.129.100.80:5050", // your BASE_URL
+                apiUrl = "http://10.129.10.42:5050", // your BASE_URL
                 onMessage = { message ->
                     Log.d("SSE", "Received message: $message")
                     // Example: only update statusText if it's not a spammy type

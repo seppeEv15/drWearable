@@ -20,6 +20,7 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import com.example.drwearable.R
 import com.example.drwearable.presentation.ui.screens.WearApp
+import com.example.drwearable.presentation.ui.screens.Gate
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
