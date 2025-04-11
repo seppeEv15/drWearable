@@ -1,4 +1,4 @@
-package com.example.drwearable.presentation.ui.screens
+package com.example.drwearable.presentation.ui
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -22,7 +22,6 @@ import com.example.drwearable.presentation.network.SseClient
 import com.example.drwearable.presentation.network.WaggleDanceApi
 import com.example.drwearable.presentation.network.checkApiConnection
 import com.example.drwearable.presentation.theme.DrWearableTheme
-import com.example.drwearable.presentation.ui.components.Greeting
 import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -30,11 +29,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
 import retrofit2.Response
 
+/**
+ * Wearable app entry point.
+ */
 @Composable
-fun WearApp(greetingName: String) {
+fun drWearableApp(greetingName: String) {
     var playerData = JsonObject()
     var firstName by remember { mutableStateOf("") }
     var connectionsStatus by remember { mutableStateOf("Connecting...") }
@@ -75,14 +76,31 @@ fun WearApp(greetingName: String) {
 
                 onMessage = { message ->
                     if (message.contains("drMemberCPPlayerData")) {
-                        val jsonParser = JsonParser()
-                        val jsonObject = jsonParser.parse(message).asJsonObject
-                        println(jsonObject)
-                        println(jsonObject::class.simpleName)
-                        playerData = jsonObject
-                        val payload = playerData.get("payload").asJsonObject
-                        var player = payload.get("player").asJsonObject
-                        firstName = player.get("firstName").toString()
+                        try {
+                            val jsonParser = JsonParser()
+                            val jsonObject = jsonParser.parse(message).asJsonObject
+                            println(jsonObject)
+                            println(jsonObject::class.simpleName)
+
+                            playerData = jsonObject
+                            val payloadElement = playerData.get("payload")
+
+                            if (payloadElement != null && payloadElement.isJsonObject) {
+                                val payload = payloadElement.asJsonObject
+                                val playerElement = payload.get("player")
+
+                                if (playerElement != null && playerElement.isJsonObject) {
+                                    val player = playerElement.asJsonObject
+                                    firstName = player.get("firstName")?.toString() ?: "Unknown"
+                                } else {
+                                    Log.e("SSE", "Missing 'player' field in payload")
+                                }
+                            } else {
+                                Log.e("SSE", "Missing 'payload' field in message")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("SSE", "Exception while parsing message: ${e.message}")
+                        }
                     }
 
                     if (message.contains("test")) {
