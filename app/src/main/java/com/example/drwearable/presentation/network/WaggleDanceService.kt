@@ -5,9 +5,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.Call
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
 import org.json.JSONObject
 import retrofit2.Response
@@ -23,6 +25,7 @@ import java.util.concurrent.TimeUnit
 data class SessionIdResponse(val sessionId: String)
 
 interface WaggleDanceService {
+
     @POST("client2server")
     suspend fun getSessionId(@Body body: RequestBody): Response<SessionIdResponse>
 
@@ -106,6 +109,36 @@ class SseClient(
         call?.cancel()
     }
 }
+
+class SendToHB() {
+
+    private val client = OkHttpClient()
+
+    fun send(message: String, payload: Any) {
+        println("session" + getSessionId)
+
+        val json = JSONObject()
+        json.put(message, payload)
+        val command = json.toString() + "\n"
+
+        println(command)
+
+        val body = command.toRequestBody("application/json".toMediaTypeOrNull())
+        val request = Request.Builder()
+            .url("http://10.129.10.42/client2server?sessionId=$sessionId")
+            .post(body)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                println("Request failed: ${response.code}")
+            } else {
+                println("Request successful")
+            }
+        }
+    }
+}
+
 
 //  Optional:  clean up the SSE client when the composable is disposed
 //  DisposableEffect(Unit) {

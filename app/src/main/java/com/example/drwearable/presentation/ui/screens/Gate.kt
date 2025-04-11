@@ -29,8 +29,11 @@ import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.TimeText
 import com.example.drwearable.R
+import com.example.drwearable.presentation.network.SendToHB
+import com.example.drwearable.presentation.network.WaggleDanceService
 import com.example.drwearable.presentation.theme.DrWearableTheme
 import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
+
 
 
 @Composable
@@ -44,8 +47,8 @@ fun Gate () {
             timeText = { TimeText() }
         ) {
             VerticalSwipeDetector (
-                onSwipeUp = { statusText = "Accepted" },
-                onSwipeDown = { statusText = "Denied" }
+                onSwipeUp = { accessGranted() },
+                onSwipeDown = { accessDenied() }
             ) {
                 Column(
                     modifier = Modifier
@@ -88,4 +91,11 @@ fun Gate () {
             }
         }
     }
+}
+
+fun accessDenied () {
+
+}
+fun accessGranted () {
+    var id =  WaggleDanceService()
 }
