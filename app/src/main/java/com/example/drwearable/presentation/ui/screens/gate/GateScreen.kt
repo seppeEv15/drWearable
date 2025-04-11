@@ -1,7 +1,4 @@
-package com.example.drwearable.presentation.ui.screens
-
-import android.R.attr.bitmap
-import androidx.compose.foundation.Image
+package com.example.drwearable.presentation.ui.screens.gate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,20 +9,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.TimeText
 import com.example.drwearable.R
@@ -37,18 +31,19 @@ import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
 
 
 @Composable
-fun Gate () {
-
-    val pingColor by remember { mutableStateOf(Color.Gray) }
-    var statusText by remember { mutableStateOf("") }
+fun GateScreen(viewModel: GateViewModel = viewModel()) {
+    val statusText = viewModel.statusText.collectAsState()
+    val pingColor = viewModel.pingColor.collectAsState()
 
     DrWearableTheme {
         Scaffold(
             timeText = { TimeText() }
         ) {
+
             VerticalSwipeDetector (
-                onSwipeUp = { accessGranted() },
-                onSwipeDown = { accessDenied() }
+                onSwipeUp = { viewModel.setStatusAccepted() },
+                onSwipeDown = { viewModel.setStatusDenied() }
+
             ) {
                 Column(
                     modifier = Modifier
@@ -58,28 +53,27 @@ fun Gate () {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(pingColor)
-                            .padding(start = 4.dp)
-                    )
+//                    Box(
+//                        modifier = Modifier
+//                            .size(10.dp)
+//                            .clip(CircleShape)
+//                            .background(pingColor.value)
+//                            .padding(start = 4.dp)
+//                    )
 
                     BasicText(
                         text = "GATE",
                         modifier = Modifier.padding(top = 4.dp),
                         style = TextStyle(
                             color = Color.White,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
                             textAlign = TextAlign.Center
                         )
                     )
 
-
                     BasicText(
-                        text = statusText,
+                        text = statusText.value,
                         modifier = Modifier.padding(top = 4.dp),
                         style = TextStyle(
                             color = Color.White,
@@ -91,11 +85,4 @@ fun Gate () {
             }
         }
     }
-}
-
-fun accessDenied () {
-
-}
-fun accessGranted () {
-    var id =  WaggleDanceService()
 }
