@@ -4,14 +4,17 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-04-04T07:28:41.947296024Z">
+        <DropdownSelection timestamp="2025-04-10T12:40:11.964596448Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=/home/seppe/.android/avd/Wear_OS_Small_Round_API_34_Wearable.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=49271JEAYW00JF" />
             </handle>
           </Target>
         </DropdownSelection>
         <DialogSelection />
+      </SelectionState>
+      <SelectionState runConfigName="MainActivity">
+        <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>
   </component>
