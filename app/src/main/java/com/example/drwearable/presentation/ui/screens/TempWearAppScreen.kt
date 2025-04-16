@@ -1,4 +1,4 @@
-package com.example.drwearable.presentation.ui
+package com.example.drwearable.presentation.ui.screens
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -17,55 +17,32 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.*
 import com.example.drwearable.R
-import com.example.drwearable.presentation.network.SessionIdResponse
 import com.example.drwearable.presentation.network.SseClient
-import com.example.drwearable.presentation.network.WaggleDanceApi
-import com.example.drwearable.presentation.network.checkApiConnection
 import com.example.drwearable.presentation.theme.DrWearableTheme
+import com.example.drwearable.presentation.ui.components.StartButton
 import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.toRequestBody
-import retrofit2.Response
 
 /**
  * Wearable app entry point.
  */
 @Composable
-fun drWearableApp(greetingName: String) {
+fun WearApp(greetingName: String) {
     var playerData = JsonObject()
     var firstName by remember { mutableStateOf("") }
     var connectionsStatus by remember { mutableStateOf("Connecting...") }
     var pingColor by remember { mutableStateOf(Color.Gray) }
     var statusText by remember { mutableStateOf("") }
     var sessionId by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    val lastIsAliveTime = remember { mutableStateOf(System.currentTimeMillis()) }
+    val lastIsAliveTime = remember { mutableLongStateOf(System.currentTimeMillis()) }
     var sseClient by remember { mutableStateOf<SseClient?>(null) }
 
     val scope = rememberCoroutineScope()
 
-    // Check API connection and establish session
-    LaunchedEffect(Unit) {
-        checkApiConnection(
-            pingColor = { newColor -> pingColor = newColor },
-        )
-
-        try {
-            val response = testApiCall()
-            if (response.isSuccessful) {
-                sessionId = response.body()?.sessionId
-            } else {
-                errorMessage = "Error: ${response.code()} - ${response.message()}"
-            }
-        } catch (e: Exception) {
-            errorMessage = "Network request failed: ${e.localizedMessage}"
-        }
-    }
-
+    // TODO: move filters and logic to repository? or correct viewModel
     // Handle SSE connection
     LaunchedEffect(sessionId) {
         sessionId?.let { id ->
@@ -141,6 +118,7 @@ fun drWearableApp(greetingName: String) {
         }
     }
 
+    //TODO: Move to repository or viewModel of gateScreen
     LaunchedEffect(Unit) {
         while (true) {
             val timeSinceLastPing = System.currentTimeMillis() - lastIsAliveTime.value
@@ -179,9 +157,6 @@ fun drWearableApp(greetingName: String) {
 //                            .padding(start = 4.dp)
 //                    )
 
-                 //   Greeting(greetingName = greetingName)
-
-
                     Image(
                         modifier = Modifier
                             .width(80.dp)
@@ -192,20 +167,6 @@ fun drWearableApp(greetingName: String) {
                     )
 
                     StartButton()
-
-
-
-
-//                    BasicText(
-//                        text = connectionsStatus,
-//                        modifier = Modifier.padding(top = 4.dp),
-//                        style = TextStyle(
-//                            color = Color.Red,
-//                            fontWeight = FontWeight.Bold,
-//                            fontSize = 12.sp,
-//                            textAlign = TextAlign.Center
-//                        )
-//                    )
 
                     // Display error message if available
                     BasicText(
@@ -219,20 +180,6 @@ fun drWearableApp(greetingName: String) {
                     )
 
 /*                    BasicText(
-                        text = firstName,
-                        modifier = Modifier.padding(top = 4.dp),
-                        style = TextStyle(
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    )*/
-
-
-
-
-
-/*                    BasicText(
                         text = if (connectionsStatus == "Connected") "✅ Connected to SSE" else "❌ SSE Not Connected",
                         modifier = Modifier.padding(top = 4.dp),
                         style = TextStyle(
@@ -244,43 +191,5 @@ fun drWearableApp(greetingName: String) {
                 }
             }
         }
-    }
-}
-
-@Preview
-@Composable
-fun StartButton() {
-    Button(
-        onClick = {  Log.d("ROUTE", "TO GATES") },
-        modifier = Modifier
-            .padding(25.dp)
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(15.dp),
-        enabled = true,
-    ) {
-        Text(text = "Start")
-    }
-}
-
-
-
-suspend fun testApiCall(): Response<SessionIdResponse> {
-    val sessionBody = """{"cmd": "newSession"}"""
-        .toRequestBody("application/json".toMediaTypeOrNull())
-
-    try {
-        val response = WaggleDanceApi.service.getSessionId(sessionBody)
-        val body = response.body()
-
-        if (response.isSuccessful && body != null) {
-            Log.d("API_CALL", "Session ID: ${body.sessionId}")
-            return response
-        } else {
-            Log.e("API_CALL", "Invalid response or empty body. Code: ${response.code()}")
-            throw Exception("Invalid response or empty body")
-        }
-    } catch (e: Exception) {
-        Log.e("API_CALL", "Error: Could not establish session: ${e.localizedMessage}")
-        throw e
     }
 }

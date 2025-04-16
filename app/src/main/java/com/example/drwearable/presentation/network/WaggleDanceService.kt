@@ -3,29 +3,33 @@ package com.example.drwearable.presentation.network
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import okhttp3.Call
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.ResponseBody
-import org.json.JSONObject
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
-import retrofit2.http.Query
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 
 data class SessionIdResponse(val sessionId: String)
 
-interface WaggleDanceService {
+//TODO: Save the BASE_URL in a config file
+private const val BASE_URL = "http://10.129.10.42:5050"
 
+
+/**
+ * WaggleDanceService is an interface that defines the API endpoints for the WaggleDance service.
+ */
+interface WaggleDanceService {
     @POST("client2server")
     suspend fun getSessionId(@Body body: RequestBody): Response<SessionIdResponse>
 
@@ -40,7 +44,6 @@ interface WaggleDanceService {
 }
 
 object WaggleDanceApi {
-    private const val BASE_URL = "http://10.129.10.42:5050"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -114,29 +117,29 @@ class SendToHB() {
 
     private val client = OkHttpClient()
 
-    fun send(message: String, payload: Any) {
-        println("session" + getSessionId)
-
-        val json = JSONObject()
-        json.put(message, payload)
-        val command = json.toString() + "\n"
-
-        println(command)
-
-        val body = command.toRequestBody("application/json".toMediaTypeOrNull())
-        val request = Request.Builder()
-            .url("http://10.129.10.42/client2server?sessionId=$sessionId")
-            .post(body)
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                println("Request failed: ${response.code}")
-            } else {
-                println("Request successful")
-            }
-        }
-    }
+//    fun send(message: String, payload: Any) {
+//        println("session" + getSessionId)
+//
+//        val json = JSONObject()
+//        json.put(message, payload)
+//        val command = json.toString() + "\n"
+//
+//        println(command)
+//
+//        val body = command.toRequestBody("application/json".toMediaTypeOrNull())
+//        val request = Request.Builder()
+//            .url("http://10.129.10.42/client2server?sessionId=$sessionId")
+//            .post(body)
+//            .build()
+//
+//        client.newCall(request).execute().use { response ->
+//            if (!response.isSuccessful) {
+//                println("Request failed: ${response.code}")
+//            } else {
+//                println("Request successful")
+//            }
+//        }
+//    }
 }
 
 

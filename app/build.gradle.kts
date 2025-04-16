@@ -16,7 +16,6 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-
     }
 
     buildTypes {
@@ -27,6 +26,7 @@ android {
                 "proguard-rules.pro"
             )
         }
+
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8

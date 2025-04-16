@@ -11,9 +11,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.drwearable.presentation.ui.screens.gate.GateScreen
-import com.example.drwearable.presentation.ui.screens.gate.GateViewModel
+import com.example.drwearable.presentation.ui.DrWearableApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,9 +19,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setTheme(R.style.Theme_DeviceDefault)
         setContent {
-            val gateViewModel: GateViewModel = viewModel()
-            GateScreen(gateViewModel)
-//            drWearableApp("Seppe")
+            DrWearableApp()
         }
     }
 }
