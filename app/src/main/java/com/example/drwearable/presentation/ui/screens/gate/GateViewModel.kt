@@ -5,6 +5,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.drwearable.presentation.data.WaggledanceRepository
+import com.example.drwearable.presentation.data.model.GateResponse
+import com.example.drwearable.presentation.data.model.Player
+import com.example.drwearable.presentation.data.model.PlayerResponse
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,11 +37,14 @@ class GateViewModel(
     private val _errorMessage = MutableStateFlow("")
     val errorMessage: StateFlow<String> = _errorMessage.asStateFlow()
 
-    private val _messages = MutableStateFlow<List<String>>(emptyList())
-    val messages: StateFlow<List<String>> get()  =_messages
-
     private val _connectionsStatus = MutableStateFlow("Disconnected")
     val connectionsStatus: StateFlow<String> get() = _connectionsStatus
+
+    private val _playerResponse = MutableStateFlow<PlayerResponse?>(null)
+    val playerResponse: StateFlow<PlayerResponse?> = _playerResponse.asStateFlow()
+
+    private val _gateResponse = MutableStateFlow<GateResponse?>(null)
+    val gateResponse: StateFlow<GateResponse?> = _gateResponse.asStateFlow()
 
     init {
         Log.d("SESSION_ID", "Starting API call")
@@ -68,10 +77,65 @@ class GateViewModel(
     fun startSseStream() {
         viewModelScope.launch {
             repository.startSseStream(sessionId.value).collect { message ->
-                Log.d("SSE", "Received message: $message")
+                if (message.contains("drMemberCPPlayerData")) {
+                    val payload = getPayload(message)
+                    if (payload?.get("hasData")?.asBoolean == true) {
+                        val playerObj = payload.getAsJsonObject("player")
 
-                _messages.value = _messages.value + message
+                        val response = PlayerResponse(
+                            position = payload.get("position").asString,
+                            playerId = payload.get("playerId").asInt,
+                            player = Player(
+                                firstName = playerObj?.get("firstName")?.asString ?: "",
+                                secondName = playerObj?.get("secondName")?.asString ?: "",
+                                lastName = playerObj?.get("lastName")?.asString ?: "",
+                                lastName2 = playerObj?.get("lastName2")?.asString ?: ""
+                            )
+                        )
+
+                        _playerResponse.value = response
+                        Log.d("SSE", "drMemberCPPlayerData: $response")
+                    }
+                }
+
+                if (message.contains("drMemberCPGateArray")) {
+                    val payload = getPayload(message)
+                    val list = getList(payload.toString())
+
+                    val gate = list?.firstOrNull()?.asJsonObject
+
+                    val response = GateResponse(
+                        position = gate?.get("position")?.asString ?: "",
+                        state = gate?.get("state")?.asString ?: ""
+                    )
+
+                    _gateResponse.value = response
+                    Log.d("SSE", "drMemberCPGateArray: $response")
+                }
             }
+        }
+    }
+
+    fun getPayload(message: String): JsonObject? {
+        return try {
+            val jsonParser = JsonParser()
+            val jsonObject = jsonParser.parse(message).asJsonObject
+            jsonObject.getAsJsonObject("payload")
+        } catch (e: Exception) {
+            Log.e("SSE", "Failed to parse payload", e)
+            null
+        }
+    }
+
+    fun getList(message: String): JsonArray? {
+        return try {
+            val jsonParser = JsonParser()
+            val jsonElement = jsonParser.parse(message)
+            val jsonObject = jsonElement.asJsonObject
+            jsonObject.getAsJsonArray("list")
+        } catch (e: Exception) {
+            Log.e("SSE", "Failed to parse payload", e)
+            null
         }
     }
 

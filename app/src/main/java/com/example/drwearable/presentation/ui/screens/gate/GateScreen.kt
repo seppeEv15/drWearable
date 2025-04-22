@@ -27,7 +27,8 @@ import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
 @Composable
 fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvider.Factory)) {
     val swipeText by viewModel.swipeText.collectAsState()
-    val sessionId by viewModel.sessionId.collectAsState()
+    val playerResponse by viewModel.playerResponse.collectAsState()
+    val gateResponse by viewModel.gateResponse.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val pingColor by viewModel.pingColor.collectAsState()
 
@@ -69,7 +70,7 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
                     )
 
                     BasicText(
-                        text = "ID: $sessionId",
+                        text = "Player: ${playerResponse?.player?.firstName ?: ""} ${playerResponse?.player?.secondName ?: ""} ${playerResponse?.player?.lastName ?: ""} ${playerResponse?.player?.lastName2 ?: ""}",
                         modifier = Modifier.padding(top = 4.dp),
                         style = TextStyle(
                             color = Color.White,
@@ -78,6 +79,15 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
                         )
                     )
 
+                    BasicText(
+                        text = "GATE: position: ${gateResponse?.position ?: ""}, state: ${gateResponse?.state ?: ""}",
+                        modifier = Modifier.padding(top = 4.dp),
+                        style = TextStyle(
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    )
 
                     BasicText(
                         text = swipeText,
