@@ -46,7 +46,7 @@ class PlayerQueueManager {
         updateCurrentPlayer()
     }
 
-    // Make sure to not double delete from queue when self qccpeting them
+    // Make sure to not double delete from queue when self accepting them
     fun clearQueue() {
         _queue.value.clear()
         updateCurrentPlayer()

@@ -15,6 +15,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,6 +84,11 @@ class GateViewModel(
                 if (response.isSuccessful) {
                     queueManager.acceptNext()
                     _swipeText.value = "Accepted"
+
+                    viewModelScope.launch {
+                        delay(5000)
+                        _swipeText.value = ""
+                    }
                 } else {
                     _swipeText.value = "Failed to accept: ${response.code()}"
                     Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
@@ -109,6 +115,11 @@ class GateViewModel(
                 if (response.isSuccessful) {
                     queueManager.denyNext()
                     _swipeText.value = "Denied"
+
+                    viewModelScope.launch {
+                        delay(5000)
+                        _swipeText.value = ""
+                    }
                 } else {
                     _swipeText.value = "Failed to deny: ${response.code()}"
                     Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
@@ -152,10 +163,8 @@ class GateViewModel(
 
             // TODO: verify these safe calls, cause it did not work
             val response = PlayerResponse(
-                position = payload.get("position")?.asString ?: "",
-                playerId = payload.get("playerId")?.asInt ?: -1,
-                // position = payload.get("position")?.takeIf { it !is JsonNull }?.asString ?: "",
-                // playerId = payload.get("playerId")?.takeIf { it !is JsonNull }?.asInt ?: -1,
+                position = payload.get("position")?.takeIf { it !is JsonNull }?.asString ?: "",
+                playerId = payload.get("playerId")?.takeIf { it !is JsonNull }?.asInt ?: -1,
                 player = Player(
                     firstName = playerObj?.get("firstName")?.asString.orEmpty(),
                     secondName = playerObj?.get("secondName")?.asString.orEmpty(),
@@ -165,6 +174,7 @@ class GateViewModel(
             )
 
             onPlayerScanned(response)
+//            Log.d("SSE", "drMemberCPPlayerData: $payload")
             Log.d("SSE", "drMemberCPPlayerData: $response")
         }
     }
