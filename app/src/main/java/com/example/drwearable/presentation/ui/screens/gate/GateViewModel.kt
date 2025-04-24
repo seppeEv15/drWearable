@@ -5,10 +5,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.drwearable.presentation.data.WaggledanceRepository
+import com.example.drwearable.presentation.data.model.GateAccessPayload
 import com.example.drwearable.presentation.data.model.GateResponse
+import com.example.drwearable.presentation.data.model.GateState
 import com.example.drwearable.presentation.data.model.Player
+import com.example.drwearable.presentation.data.model.PlayerQueueManager
 import com.example.drwearable.presentation.data.model.PlayerResponse
 import com.google.gson.JsonArray
+import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +29,12 @@ sealed interface SessionUiState {
 class GateViewModel(
     private val repository: WaggledanceRepository
 ) : ViewModel() {
+    private val queueManager = PlayerQueueManager()
+
+    val currentPlayer = queueManager.currentPlayer
+
+    val queue = queueManager.queue
+
     private val _swipeText = MutableStateFlow("")
     val swipeText: StateFlow<String> = _swipeText.asStateFlow()
 
@@ -39,9 +49,6 @@ class GateViewModel(
 
     private val _connectionsStatus = MutableStateFlow("Disconnected")
     val connectionsStatus: StateFlow<String> get() = _connectionsStatus
-
-    private val _playerResponse = MutableStateFlow<PlayerResponse?>(null)
-    val playerResponse: StateFlow<PlayerResponse?> = _playerResponse.asStateFlow()
 
     private val _gateResponse = MutableStateFlow<GateResponse?>(null)
     val gateResponse: StateFlow<GateResponse?> = _gateResponse.asStateFlow()
@@ -62,58 +69,128 @@ class GateViewModel(
         }
     }
 
+    /**
+     * Accept a player
+     */
     fun setStatusAccepted() {
-        _swipeText.value = "Accepted"
+        viewModelScope.launch {
+            try {
+                val response = repository.sendAccessEvent(
+                    sessionId = sessionId.value.toString(),
+                    payload =  GateAccessPayload(position = currentPlayer.value?.position.toString(), isAccessGranted = true)
+                )
+
+                if (response.isSuccessful) {
+                    queueManager.acceptNext()
+                    _swipeText.value = "Accepted"
+                } else {
+                    _swipeText.value = "Failed to accept: ${response.code()}"
+                    Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
+                }
+
+            } catch (e: Exception) {
+                _swipeText.value = "Error sending acceptance"
+                Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
+            }
+        }
     }
 
+    /**
+     * Deny a player
+     */
     fun setStatusDenied() {
-        _swipeText.value = "Denied"
+        viewModelScope.launch {
+            try {
+                val response = repository.sendAccessEvent(
+                    sessionId = sessionId.value.toString(),
+                    payload = GateAccessPayload(position = currentPlayer.value?.position.toString(), isAccessGranted = false)
+                )
+
+                if (response.isSuccessful) {
+                    queueManager.denyNext()
+                    _swipeText.value = "Denied"
+                } else {
+                    _swipeText.value = "Failed to deny: ${response.code()}"
+                    Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
+                }
+
+            } catch (e: Exception) {
+                _swipeText.value = "Error sending denial"
+                Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
+            }
+        }
     }
 
     fun setPingColor(color: Color) {
         _pingColor.value = color
     }
 
+    /**
+     * - Start SSE stream
+     * - listen to the messages and handle them (player & gate)
+     */
     fun startSseStream() {
         viewModelScope.launch {
             repository.startSseStream(sessionId.value).collect { message ->
-                if (message.contains("drMemberCPPlayerData")) {
-                    val payload = getPayload(message)
-                    if (payload?.get("hasData")?.asBoolean == true) {
-                        val playerObj = payload.getAsJsonObject("player")
-
-                        val response = PlayerResponse(
-                            position = payload.get("position").asString,
-                            playerId = payload.get("playerId").asInt,
-                            player = Player(
-                                firstName = playerObj?.get("firstName")?.asString ?: "",
-                                secondName = playerObj?.get("secondName")?.asString ?: "",
-                                lastName = playerObj?.get("lastName")?.asString ?: "",
-                                lastName2 = playerObj?.get("lastName2")?.asString ?: ""
-                            )
-                        )
-
-                        _playerResponse.value = response
-                        Log.d("SSE", "drMemberCPPlayerData: $response")
+                when {
+                    message.contains("drMemberCPPlayerData") -> {
+                        handlePlayerData(message)
                     }
-                }
 
-                if (message.contains("drMemberCPGateArray")) {
-                    val payload = getPayload(message)
-                    val list = getList(payload.toString())
-
-                    val gate = list?.firstOrNull()?.asJsonObject
-
-                    val response = GateResponse(
-                        position = gate?.get("position")?.asString ?: "",
-                        state = gate?.get("state")?.asString ?: ""
-                    )
-
-                    _gateResponse.value = response
-                    Log.d("SSE", "drMemberCPGateArray: $response")
+                    message.contains("drMemberCPGateArray") -> {
+                        handleGateData(message)
+                    }
                 }
             }
         }
+    }
+
+    private fun handlePlayerData(message: String) {
+        val payload = getPayload(message)
+        if (payload?.get("hasData")?.asBoolean == true) {
+            val playerObj = payload.getAsJsonObject("player")
+
+            // TODO: verify these safe calls, cause it did not work
+            val response = PlayerResponse(
+                position = payload.get("position")?.asString ?: "",
+                playerId = payload.get("playerId")?.asInt ?: -1,
+                // position = payload.get("position")?.takeIf { it !is JsonNull }?.asString ?: "",
+                // playerId = payload.get("playerId")?.takeIf { it !is JsonNull }?.asInt ?: -1,
+                player = Player(
+                    firstName = playerObj?.get("firstName")?.asString.orEmpty(),
+                    secondName = playerObj?.get("secondName")?.asString.orEmpty(),
+                    lastName = playerObj?.get("lastName")?.asString.orEmpty(),
+                    lastName2 = playerObj?.get("lastName2")?.asString.orEmpty()
+                )
+            )
+
+            onPlayerScanned(response)
+            Log.d("SSE", "drMemberCPPlayerData: $response")
+        }
+    }
+
+    /**
+     * Handle gate messages:
+     * - Remove accepted or denied players form the queue
+     */
+    private fun handleGateData(message: String) {
+        val payload = getPayload(message)
+        val list = getList(payload.toString())
+        val gate = list?.firstOrNull()?.asJsonObject
+        val gateState = gate?.get("state")?.asString.orEmpty()
+        val gatePosition = gate?.get("position")?.asString.orEmpty()
+
+        if (gateState == GateState.ACCESS_GRANTED.value || gateState == GateState.ACCESS_DENIED.value ) {
+            queueManager.removeByPosition(gatePosition)
+        }
+
+        val response = GateResponse(
+            position = gatePosition,
+            state = gateState
+        )
+
+        _gateResponse.value = response
+        Log.d("SSE", "drMemberCPGateArray: $response")
     }
 
     fun getPayload(message: String): JsonObject? {
@@ -137,6 +214,10 @@ class GateViewModel(
             Log.e("SSE", "Failed to parse payload", e)
             null
         }
+    }
+
+    fun onPlayerScanned(player: PlayerResponse) {
+        queueManager.enQueue(player)
     }
 
     // Check if needed/ how to do this

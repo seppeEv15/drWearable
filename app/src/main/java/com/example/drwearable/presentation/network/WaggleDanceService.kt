@@ -1,21 +1,21 @@
 package com.example.drwearable.presentation.network
 
 import android.util.Log
+import com.example.drwearable.presentation.data.model.GateAccessPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
+import retrofit2.http.Query
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
@@ -33,14 +33,12 @@ interface WaggleDanceService {
     @POST("client2server")
     suspend fun getSessionId(@Body body: RequestBody): Response<SessionIdResponse>
 
-//    @POST("client2server")
-//    suspend fun sendMessage(@Body body: RequestBody): Response<ResponseBody>
-
-//    @POST("client2server")
-//    suspend fun sendMessageWithSession(
-//        @Query("sessionId") sessionId: String,
-//        @Body body: RequestBody
-//    ): Response<ResponseBody>
+    // does not return a response, change this later
+    @POST("client2server")
+    suspend fun sendMessageWithSession(
+        @Query("sessionId") sessionId: String,
+        @Body body: Map<String, GateAccessPayload>
+    ): Response<Unit>
 }
 
 object WaggleDanceApi {

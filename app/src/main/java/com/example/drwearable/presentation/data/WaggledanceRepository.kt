@@ -1,13 +1,16 @@
 package com.example.drwearable.presentation.data
 
 import android.util.Log
+import com.example.drwearable.presentation.data.model.GateAccessPayload
 import com.example.drwearable.presentation.network.SseClient
 import com.example.drwearable.presentation.network.WaggleDanceService
+import com.google.gson.Gson
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.Response
 
 //TODO: Save the BASE_URL in a config file
 private const val BASE_URL = "http://10.129.10.42:5050"
@@ -58,5 +61,12 @@ class WaggledanceRepository(private val service: WaggleDanceService) {
             sseClient.start()
             awaitClose { sseClient.stop() }
         }
+    }
+
+    suspend fun sendAccessEvent(payload: GateAccessPayload, sessionId: String): Response<Unit> {
+        val requestBody = mapOf("drMemberCPAccess" to payload)
+        val json = Gson().toJson(requestBody)
+        Log.d("GATE", "requestBody: $json, sessionId: $sessionId")
+        return service.sendMessageWithSession(sessionId, requestBody)
     }
 }

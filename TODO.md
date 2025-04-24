@@ -8,3 +8,5 @@
 - [ ] check if implementation of the loading, success, error is needed, if not, remove it
 - [ ] visual representation of the queue
 - [ ] visual representation of the current player, work out a visual design
+- [ ] add extra info concerning acce of the player (FATF, blaclist, greylist, ...)
+- [ ] visualise the queue
