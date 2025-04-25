@@ -16,7 +16,6 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-
     }
 
     buildTypes {
@@ -27,6 +26,7 @@ android {
                 "proguard-rules.pro"
             )
         }
+
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -62,6 +62,10 @@ dependencies {
     implementation(libs.retrofit.scalars)
     implementation(libs.jsoup)
     implementation(libs.compose.foundation)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.sse)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.navigation.runtime.ktx)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)
