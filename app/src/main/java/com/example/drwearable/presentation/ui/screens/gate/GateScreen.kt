@@ -29,8 +29,8 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
     val swipeText by viewModel.swipeText.collectAsState()
     val gateResponse by viewModel.gateResponse.collectAsState()
     val currentPlayer by viewModel.currentPlayer.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val pingColor by viewModel.pingColor.collectAsState()
+    //val errorMessage by viewModel.errorMessage.collectAsState()
+    //val pingColor by viewModel.pingColor.collectAsState()
 
     DrWearableTheme {
         Scaffold(

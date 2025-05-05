@@ -1,6 +1,7 @@
 package com.example.drwearable.presentation.network
 
 import android.util.Log
+import com.example.drwearable.BuildConfig
 import com.example.drwearable.presentation.data.model.GateAccessPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -9,7 +10,6 @@ import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -22,9 +22,7 @@ import java.util.concurrent.TimeUnit
 
 data class SessionIdResponse(val sessionId: String)
 
-//TODO: Save the BASE_URL in a config file
-private const val BASE_URL = "http://10.129.10.42:5050"
-
+private const val BASE_URL = BuildConfig.BASE_URL
 
 /**
  * WaggleDanceService is an interface that defines the API endpoints for the WaggleDance service.
@@ -78,8 +76,11 @@ class SseClient(
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = call!!.execute()
-                if (!response.isSuccessful) throw Exception("Unsuccessful response: ${response.code}")
+                val response = call?.execute()  // Execute the request with OkHttp
+
+                if (response?.isSuccessful != true) {
+                    throw Exception("Unsuccessful response: ${response?.code}")
+                }
 
                 onOpen()
 
@@ -110,4 +111,5 @@ class SseClient(
         call?.cancel()
     }
 }
+
 

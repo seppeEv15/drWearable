@@ -1,3 +1,15 @@
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        load(localPropertiesFile.inputStream())
+    }
+}
+
+val baseUrlDebug = localProperties.getProperty("BASE_URL_DEBUG") ?: ""
+val baseUrlRelease = localProperties.getProperty("BASE_URL_RELEASE") ?: ""
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -25,8 +37,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "BASE_URL", "\"$baseUrlDebug\"")
         }
-
+        debug {
+            buildConfigField("String", "BASE_URL", "\"$baseUrlRelease\"")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -37,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -58,8 +74,10 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.core.splashscreen)
     implementation(libs.retrofit)
-    implementation(libs.gson)
     implementation(libs.retrofit.scalars)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.gson)
     implementation(libs.jsoup)
     implementation(libs.compose.foundation)
     implementation(libs.okhttp)

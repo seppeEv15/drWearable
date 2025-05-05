@@ -1,6 +1,7 @@
 package com.example.drwearable.presentation.data
 
 import android.util.Log
+import com.example.drwearable.BuildConfig
 import com.example.drwearable.presentation.data.model.GateAccessPayload
 import com.example.drwearable.presentation.network.SseClient
 import com.example.drwearable.presentation.network.WaggleDanceService
@@ -12,8 +13,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
 
-//TODO: Save the BASE_URL in a config file
-private const val BASE_URL = "http://10.129.10.42:5050"
+private const val BASE_URL = BuildConfig.BASE_URL
 
 /**
  * Repository responsible for handling data operations related to the WaggleDance API.
@@ -29,7 +29,7 @@ class WaggledanceRepository(private val service: WaggleDanceService) {
             val response = service.getSessionId(sessionBody)
 
             if (response.isSuccessful) {
-                Result.success(response.body()!!.sessionId)
+                Result.success(response.body()?.sessionId as String)
             } else {
                 Result.failure(Exception("HTTP ${response.code()} ${response.message()}"))
             }
