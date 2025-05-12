@@ -6,7 +6,6 @@
 
 package com.example.drwearable.presentation
 
-import android.R
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -17,7 +16,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        setTheme(R.style.Theme_DeviceDefault)
+        // TODO: Add custom theme here
+        // setTheme(R.style.Theme_DeviceDefault)
         setContent {
             DrWearableApp()
         }

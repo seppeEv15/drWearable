@@ -19,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 sealed interface SessionUiState {
@@ -53,6 +54,8 @@ class GateViewModel(
 
     private val _gateResponse = MutableStateFlow<GateResponse?>(null)
     val gateResponse: StateFlow<GateResponse?> = _gateResponse.asStateFlow()
+
+    val isSseConnected: StateFlow<Boolean> = repository.isSseConnected
 
     init {
         Log.d("SESSION_ID", "Starting API call")
@@ -142,15 +145,29 @@ class GateViewModel(
      */
     fun startSseStream() {
         viewModelScope.launch {
-            repository.startSseStream(sessionId.value).collect { message ->
-                when {
-                    message.contains("drMemberCPPlayerData") -> {
-                        handlePlayerData(message)
+            try {
+                repository.startSseStream(sessionId.value)
+                    .collect { message ->
+                        when {
+                            message.contains("drMemberCPPlayerData") -> handlePlayerData(message)
+                            message.contains("drMemberCPGateArray") -> handleGateData(message)
+                        }
                     }
+            } catch (e: Exception) {
+                Log.e("SSE", "Error in SSE stream: ${e.localizedMessage}")
+                _errorMessage.value = "SSE error: ${e.localizedMessage}"
+            }
+        }
+        startConnectionMonitor()
+    }
 
-                    message.contains("drMemberCPGateArray") -> {
-                        handleGateData(message)
-                    }
+    // TODO: check if this is good, or if it needs to be changed to the original methode (checking how long it has been since the last message)
+    private fun startConnectionMonitor() {
+        viewModelScope.launch {
+            while (isActive) {
+                delay(10_000L) // 10 seconds
+                if (!repository.isSseConnected.value) {
+                    Log.w("SSE", "WaggleDance connection lost")
                 }
             }
         }
@@ -174,7 +191,6 @@ class GateViewModel(
             )
 
             onPlayerScanned(response)
-//            Log.d("SSE", "drMemberCPPlayerData: $payload")
             Log.d("SSE", "drMemberCPPlayerData: $response")
         }
     }

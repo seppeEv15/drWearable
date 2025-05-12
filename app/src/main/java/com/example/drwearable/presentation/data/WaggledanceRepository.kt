@@ -8,6 +8,8 @@ import com.example.drwearable.presentation.network.WaggleDanceService
 import com.google.gson.Gson
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -19,6 +21,9 @@ private const val BASE_URL = BuildConfig.BASE_URL
  * Repository responsible for handling data operations related to the WaggleDance API.
  */
 class WaggledanceRepository(private val service: WaggleDanceService) {
+    private val _isSseConnected = MutableStateFlow(false)
+    val isSseConnected: StateFlow<Boolean> = _isSseConnected
+
     suspend fun getSessionId(): Result<String> {
         return try {
             val sessionBody = """{"cmd": "newSession"}"""
@@ -52,14 +57,20 @@ class WaggledanceRepository(private val service: WaggleDanceService) {
                 },
                 onOpen = {
                     Log.d("SSE", "Connection opened")
+                    _isSseConnected.value = true
                 },
                 onError = { error ->
                     Log.e("SSE", "Connection error: ${error.localizedMessage}")
+                    _isSseConnected.value = false
                 }
             )
 
             sseClient.start()
-            awaitClose { sseClient.stop() }
+            awaitClose {
+                Log.d("SSE", "Connection closed")
+                _isSseConnected.value = false
+                sseClient.stop()
+            }
         }
     }
 

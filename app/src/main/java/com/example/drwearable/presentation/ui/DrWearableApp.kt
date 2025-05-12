@@ -6,8 +6,7 @@ import com.example.drwearable.presentation.ui.screens.gate.GateScreen
 import com.example.drwearable.presentation.ui.screens.gate.GateViewModel
 
 @Composable
-fun DrWearableApp(
-) {
+fun DrWearableApp() {
     val gateViewModel: GateViewModel = viewModel(factory = AppViewModelProvider.Factory)
     GateScreen(gateViewModel)
 }

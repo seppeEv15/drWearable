@@ -17,12 +17,12 @@ plugins {
 
 android {
     namespace = "com.example.drwearable"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.drwearable"
         minSdk = 33
-        targetSdk = 34
+        targetSdk = 34 // Updated to 35
         versionCode = 1
         versionName = "1.0"
         vectorDrawables {
@@ -75,7 +75,7 @@ dependencies {
     implementation(libs.core.splashscreen)
     implementation(libs.retrofit)
     implementation(libs.retrofit.scalars)
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.gson)
     implementation(libs.jsoup)
@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.okhttp.sse)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.navigation.runtime.ktx)
+    implementation(libs.compose.material3)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)

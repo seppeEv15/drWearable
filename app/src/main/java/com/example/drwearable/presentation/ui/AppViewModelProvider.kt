@@ -11,10 +11,17 @@ import com.example.drwearable.presentation.ui.screens.gate.GateViewModel
 object AppViewModelProvider {
     val Factory = viewModelFactory {
         initializer {
-            Log.d("ViewModelFactory", "Initializing GateViewModel with repository")
-            GateViewModel(repository = WaggledanceRepository(
-                service = WaggleDanceApi.service
-            ))
+            try {
+                Log.d("ViewModelFactory", "Creating GateViewModel")
+                GateViewModel(
+                    repository = WaggledanceRepository(
+                        service = WaggleDanceApi.service
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("ViewModelFactory", "Failed to create GateViewModel", e)
+                throw e
+            }
         }
     }
 }

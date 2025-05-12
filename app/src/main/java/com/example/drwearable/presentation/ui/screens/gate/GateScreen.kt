@@ -1,15 +1,21 @@
 package com.example.drwearable.presentation.ui.screens.gate
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -18,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material.Scaffold
+import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 
 import com.example.drwearable.presentation.theme.DrWearableTheme
@@ -29,10 +36,26 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
     val swipeText by viewModel.swipeText.collectAsState()
     val gateResponse by viewModel.gateResponse.collectAsState()
     val currentPlayer by viewModel.currentPlayer.collectAsState()
+    val isConnected by viewModel.isSseConnected.collectAsState()
     //val errorMessage by viewModel.errorMessage.collectAsState()
-    //val pingColor by viewModel.pingColor.collectAsState()
+
+    val gateText = "GATE" + if (isConnected) " ✅" else " ❌"
+
+    val player = currentPlayer?.player
+
+    val fullName = listOfNotNull(
+        player?.firstName,
+        player?.secondName,
+        player?.lastName,
+        player?.lastName2
+    ).joinToString(" ")
 
     DrWearableTheme {
+
+        LaunchedEffect(isConnected) {
+            Log.d("GateScreen", "SSE Connection status: $isConnected")
+        }
+
         Scaffold(
             timeText = { TimeText() }
         ) {
@@ -49,16 +72,9 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-//                    Box(
-//                        modifier = Modifier
-//                            .size(10.dp)
-//                            .clip(CircleShape)
-//                            .background(pingColor.value)
-//                            .padding(start = 4.dp)
-//                    )
 
                     BasicText(
-                        text = "GATE",
+                        text = gateText,
                         modifier = Modifier.padding(top = 4.dp),
                         style = TextStyle(
                             color = Color.White,
@@ -69,7 +85,7 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
                     )
 
                     BasicText(
-                        text = "Player: ${currentPlayer?.player?.firstName ?: ""} ${currentPlayer?.player?.secondName ?: ""} ${currentPlayer?.player?.lastName ?: ""} ${currentPlayer?.player?.lastName2 ?: ""}",
+                        text = "Player: $fullName",
                         modifier = Modifier.padding(top = 4.dp),
                         style = TextStyle(
                             color = Color.White,
