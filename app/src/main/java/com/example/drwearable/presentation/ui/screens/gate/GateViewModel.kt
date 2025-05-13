@@ -1,12 +1,9 @@
 package com.example.drwearable.presentation.ui.screens.gate
 
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.drwearable.presentation.data.WaggledanceRepository
@@ -173,6 +170,8 @@ class GateViewModel(
                 delay(10_000L) // 10 seconds
                 if (!repository.isSseConnected.value) {
                     Log.w("SSE", "WaggleDance connection lost")
+
+
                 }
             }
         }
@@ -181,29 +180,31 @@ class GateViewModel(
     private fun handlePlayerData(message: String) {
         val payload = getPayload(message)
         if (payload?.get("hasData")?.asBoolean == true) {
-            val playerObj = payload.getAsJsonObject("player")
-            val passphotosArray = payload.getAsJsonArray("passphotos")
-            val firstPhotoObject = passphotosArray[0].asJsonObject
-            val base64ImageData = firstPhotoObject.get("data").asString
+            // Filter out "Query" type
+            if (payload.get("type")?.asString == "Gate") {
+                val playerObj = payload.getAsJsonObject("player")
+                val passphotosArray = payload.getAsJsonArray("passphotos")
+                val firstPhotoObject = passphotosArray[0].asJsonObject
+                val base64ImageData = firstPhotoObject.get("data").asString
 
-            val imageBytes = Base64.decode(base64ImageData, Base64.DEFAULT)
+                val imageBytes = Base64.decode(base64ImageData, Base64.DEFAULT)
 
-            // TODO: verify these safe calls, cause it did not work
-            val response = PlayerResponse(
-                position = payload.get("position")?.takeIf { it !is JsonNull }?.asString ?: "",
-                playerId = payload.get("playerId")?.takeIf { it !is JsonNull }?.asInt ?: -1,
-                player = Player(
-                    firstName = playerObj?.get("firstName")?.asString.orEmpty(),
-                    secondName = playerObj?.get("secondName")?.asString.orEmpty(),
-                    lastName = playerObj?.get("lastName")?.asString.orEmpty(),
-                    lastName2 = playerObj?.get("lastName2")?.asString.orEmpty(),
-                    image = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                // TODO: verify these safe calls, cause it did not work
+                val response = PlayerResponse(
+                    position = payload.get("position")?.takeIf { it !is JsonNull }?.asString ?: "",
+                    playerId = payload.get("playerId")?.takeIf { it !is JsonNull }?.asInt ?: -1,
+                    player = Player(
+                        firstName = playerObj?.get("firstName")?.asString.orEmpty(),
+                        secondName = playerObj?.get("secondName")?.asString.orEmpty(),
+                        lastName = playerObj?.get("lastName")?.asString.orEmpty(),
+                        lastName2 = playerObj?.get("lastName2")?.asString.orEmpty(),
+                        image = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                    )
                 )
-            )
 
-            onPlayerScanned(response)
-            Log.d("SSE", "drMemberCPPlayerData: $response")
-//            Log.d("Base64Image", base64ImageData.take(100))
+                onPlayerScanned(response)
+                Log.d("SSE - player", "drMemberCPPlayerData: $response")
+            }
         }
     }
 
@@ -228,7 +229,7 @@ class GateViewModel(
         )
 
         _gateResponse.value = response
-        Log.d("SSE", "drMemberCPGateArray: $response")
+        Log.d("SSE - gate", "drMemberCPGateArray: $response")
     }
 
     fun getPayload(message: String): JsonObject? {
