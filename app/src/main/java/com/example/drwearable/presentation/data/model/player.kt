@@ -1,6 +1,7 @@
 package com.example.drwearable.presentation.data.model
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +17,8 @@ data class Player(
     val firstName: String,
     val secondName: String,
     val lastName: String,
-    val lastName2: String
+    val lastName2: String,
+    val image: Bitmap,
 )
 
 class PlayerQueueManager {
