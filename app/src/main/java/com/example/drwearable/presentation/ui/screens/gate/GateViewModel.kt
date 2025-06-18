@@ -125,11 +125,14 @@ class GateViewModel(
                     payload =  GateAccessPayload(position = currentPlayer.value?.position.toString(), isAccessGranted = true)
                 )
 
+                val playerName = currentPlayer.value?.player?.let {
+                    "${it.firstName} ${it.lastName}".trim()
+                } ?: "Player"
+
                 if (response.isSuccessful) {
                     queueManager.acceptNext()
-                    _swipeText.value = "Accepted"
+                    _swipeText.value = "Accepted $playerName"
                     _borderState.value = BorderState.Accepted
-
                     delay(3000)
                     _borderState.value = BorderState.Neutral
                     _swipeText.value = ""
@@ -156,9 +159,13 @@ class GateViewModel(
                     payload = GateAccessPayload(position = currentPlayer.value?.position.toString(), isAccessGranted = false)
                 )
 
+                val playerName = currentPlayer.value?.player?.let {
+                    "${it.firstName} ${it.lastName}".trim()
+                } ?: "Player"
+
                 if (response.isSuccessful) {
                     queueManager.denyNext()
-                    _swipeText.value = "Denied"
+                    _swipeText.value = "Denied $playerName"
                     _borderState.value = BorderState.Denied
 
                     delay(3000)
@@ -222,6 +229,7 @@ class GateViewModel(
 
     private fun handlePlayerData(message: String) {
         val payload = repository.getPayload(message)
+        Log.d("SSE - payload", "$payload")
         if (payload?.get("hasData")?.asBoolean == true) {
             // Filter out "Query" type
             if (payload.get("type")?.asString == "Gate") {
@@ -245,8 +253,11 @@ class GateViewModel(
                     )
                 )
 
+
                 onPlayerScanned(response)
+                Log.d("SSE - blacklist", "isBlacklisted: ${payload.get("isBlacklisted")?.asBoolean}")
                 Log.d("SSE - player", "drMemberCPPlayerData: $response")
+                Log.d("SSE - playerObj", "$playerObj")
             }
         }
     }
