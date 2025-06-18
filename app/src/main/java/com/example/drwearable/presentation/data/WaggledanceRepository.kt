@@ -6,6 +6,9 @@ import com.example.drwearable.presentation.data.model.GateAccessPayload
 import com.example.drwearable.presentation.network.SseClient
 import com.example.drwearable.presentation.network.WaggleDanceService
 import com.google.gson.Gson
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,5 +82,27 @@ class WaggledanceRepository(private val service: WaggleDanceService) {
         val json = Gson().toJson(requestBody)
         Log.d("GATE", "requestBody: $json, sessionId: $sessionId")
         return service.sendMessageWithSession(sessionId, requestBody)
+    }
+
+    fun getPayload(message: String): JsonObject? {
+        return try {
+            val jsonElement = JsonParser.parseString(message)
+            val jsonObject = jsonElement.asJsonObject
+            jsonObject.getAsJsonObject("payload")
+        } catch (e: Exception) {
+            Log.e("SSE", "Failed to parse payload", e)
+            null
+        }
+    }
+
+    fun getList(message: String): JsonArray? {
+        return try {
+            val jsonElement = JsonParser.parseString(message)
+            val jsonObject = jsonElement.asJsonObject
+            jsonObject.getAsJsonArray("list")
+        } catch (e: Exception) {
+            Log.e("SSE", "Failed to parse payload", e)
+            null
+        }
     }
 }
