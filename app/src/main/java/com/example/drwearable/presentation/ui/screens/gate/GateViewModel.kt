@@ -1,8 +1,13 @@
 package com.example.drwearable.presentation.ui.screens.gate
 
+import android.Manifest
+import android.app.Application
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
+import androidx.annotation.RequiresPermission
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.drwearable.presentation.data.WaggledanceRepository
@@ -12,6 +17,7 @@ import com.example.drwearable.presentation.data.model.GateState
 import com.example.drwearable.presentation.data.model.Player
 import com.example.drwearable.presentation.data.model.PlayerQueueManager
 import com.example.drwearable.presentation.data.model.PlayerResponse
+import com.example.drwearable.presentation.notifications.NotificationHelper
 import com.google.gson.JsonNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -34,8 +40,11 @@ sealed class BorderState {
 }
 
 class GateViewModel(
+    application: Application,
     private val repository: WaggledanceRepository
-) : ViewModel() {
+) : AndroidViewModel(application) {
+    private val appContext = getApplication<Application>().applicationContext
+
     private val queueManager = PlayerQueueManager()
 
     val currentPlayer = queueManager.currentPlayer
@@ -227,6 +236,7 @@ class GateViewModel(
         }
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     private fun handlePlayerData(message: String) {
         val payload = repository.getPayload(message)
         Log.d("SSE - payload", "$payload")
@@ -254,7 +264,7 @@ class GateViewModel(
                 )
 
 
-                onPlayerScanned(response)
+                onPlayerScanned(response, appContext)
                 Log.d("SSE - blacklist", "isBlacklisted: ${payload.get("isBlacklisted")?.asBoolean}")
                 Log.d("SSE - player", "drMemberCPPlayerData: $response")
                 Log.d("SSE - playerObj", "$playerObj")
@@ -286,8 +296,11 @@ class GateViewModel(
         Log.d("SSE - gate", "drMemberCPGateArray: $response")
     }
 
-    fun onPlayerScanned(player: PlayerResponse) {
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+    fun onPlayerScanned(player: PlayerResponse, context: Context) {
         queueManager.enQueue(player)
+        Log.d("NOTIFICATION", "Triggering notification for ${player.player.firstName}")
+        NotificationHelper.notifyNewPlayer(context, player)
     }
 
     // Check if needed/ how to do this
