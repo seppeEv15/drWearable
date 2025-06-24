@@ -19,6 +19,7 @@ data class Player(
     val lastName: String,
     val lastName2: String,
     val image: Bitmap,
+    val isBlacklisted: Boolean
 )
 
 class PlayerQueueManager {
@@ -45,12 +46,6 @@ class PlayerQueueManager {
     fun removeByPosition(position: String) {
         val updatedQueue = _queue.value.filterNot { it.position == position }
         _queue.value = ArrayDeque(updatedQueue)
-        updateCurrentPlayer()
-    }
-
-    // Make sure to not double delete from queue when self accepting them
-    fun clearQueue() {
-        _queue.value.clear()
         updateCurrentPlayer()
     }
 

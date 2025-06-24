@@ -23,10 +23,8 @@ import com.google.gson.JsonNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -51,7 +49,7 @@ class GateViewModel(
 
     private val queueManager = PlayerQueueManager()
 
-val currentPlayer = queueManager.currentPlayer
+    val currentPlayer = queueManager.currentPlayer
     private val _swipeText = MutableStateFlow("")
     val swipeText: StateFlow<String> = _swipeText.asStateFlow()
 

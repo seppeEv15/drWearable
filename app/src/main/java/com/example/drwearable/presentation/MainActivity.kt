@@ -1,12 +1,5 @@
-/* While this template provides a good starting point for using Wear Compose, you can always
- * take a look at https://github.com/android/wear-os-samples/tree/main/ComposeStarter and
- * https://github.com/android/wear-os-samples/tree/main/ComposeAdvanced to find the most up to date
- * changes to the libraries and their usages.
- */
-
 package com.example.drwearable.presentation
 
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,11 +18,9 @@ class MainActivity : ComponentActivity() {
 
         NotificationHelper.createNotificationChannel(this)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val permission = Manifest.permission.POST_NOTIFICATIONS
-            if (ContextCompat.checkSelfPermission(this, permission) != PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(permission), 1001)
-            }
+        val permission = Manifest.permission.POST_NOTIFICATIONS
+        if (ContextCompat.checkSelfPermission(this, permission) != PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(permission), 1001)
         }
 
         setContent {
