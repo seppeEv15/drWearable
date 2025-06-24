@@ -3,12 +3,13 @@ package com.example.drwearable.presentation.ui.screens.gate
 import android.Manifest
 import android.app.Application
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
 import androidx.annotation.RequiresPermission
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.drwearable.presentation.data.WaggledanceRepository
 import com.example.drwearable.presentation.data.model.GateAccessPayload
@@ -22,16 +23,12 @@ import com.google.gson.JsonNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-
-sealed interface SessionUiState {
-    data class Success(val sessionId: String) : SessionUiState
-    data class Error(val message: String) : SessionUiState
-    object Loading : SessionUiState
-}
 
 sealed class BorderState {
     object Neutral : BorderState()
@@ -39,6 +36,13 @@ sealed class BorderState {
     object Denied : BorderState()
 }
 
+/**
+ * ViewModel responsible for handling gate access logic:
+ * - Establishing a session
+ * - Managing SSE stream (Waggledance)
+ * - Handling player access and gate responses
+ * - Notifying UI of state changes
+ */
 class GateViewModel(
     application: Application,
     private val repository: WaggledanceRepository
@@ -47,26 +51,14 @@ class GateViewModel(
 
     private val queueManager = PlayerQueueManager()
 
-    val currentPlayer = queueManager.currentPlayer
-
-    private val _sessionState = MutableStateFlow<SessionUiState>(SessionUiState.Loading)
-    val sessionState: StateFlow<SessionUiState> = _sessionState.asStateFlow()
-
+val currentPlayer = queueManager.currentPlayer
     private val _swipeText = MutableStateFlow("")
     val swipeText: StateFlow<String> = _swipeText.asStateFlow()
 
     private val _sessionId = MutableStateFlow("")
     val sessionId: StateFlow<String> = _sessionId.asStateFlow()
 
-    private val _gateResponse = MutableStateFlow<GateResponse?>(null)
-    val gateResponse: StateFlow<GateResponse?> = _gateResponse.asStateFlow()
-
     private var lastAliveTimestamp = System.currentTimeMillis()
-    private val _isConnectionAlive = MutableStateFlow(true)
-    val isConnectionAlive: StateFlow<Boolean> = _isConnectionAlive.asStateFlow()
-
-    private val _connectionsStatus = MutableStateFlow("Disconnected")
-    val connectionsStatus: StateFlow<String> get() = _connectionsStatus
 
     private val _borderState = MutableStateFlow<BorderState>(BorderState.Neutral)
     val borderState: StateFlow<BorderState> = _borderState.asStateFlow()
@@ -81,32 +73,35 @@ class GateViewModel(
         initSession()
     }
 
+    /**
+     * Starts a new session by requesting a session ID from the backend
+     * If successful, start the SSE stream, Otherwise, retry after delay
+     */
     private fun initSession() {
         viewModelScope.launch {
-            _sessionState.value = SessionUiState.Loading
-            _connectionsStatus.value = "Initializing"
             retryingSession = false
             val result = repository.getSessionId()
             result.onSuccess { id ->
                 Log.d("SESSION_ID", "Session ID: $id")
                 _sessionId.value = id
-                _sessionState.value = SessionUiState.Success(id)
                 startSseStream()
             }
             result.onFailure { error ->
                 Log.e("SESSION_ID", "Error fetching session ID: ${error.localizedMessage}")
-                _sessionState.value = SessionUiState.Error(error.localizedMessage ?: "Unknown error")
                 scheduleRetrySession()
             }
         }
     }
 
+    /**
+     * Retries to obtain a session ID every 10 seconds
+     * if SSE (Waggledance) is disconnected and not already retrying
+     */
     private fun scheduleRetrySession() {
         if (!retryingSession) {
             retryingSession = true
             viewModelScope.launch {
-                while (retryingSession && !isConnectionAlive.value) {
-                    _connectionsStatus.value = "Retrying..."
+                while (retryingSession && !repository.isSseConnected.value) {
                     val result = repository.getSessionId()
                     result.onSuccess { id ->
                         _sessionId.value = id
@@ -193,16 +188,22 @@ class GateViewModel(
     }
 
     /**
-     * - Start SSE stream
-     * - listen to the messages and handle them (player & gate)
+     * Start listening to SSE (Waggledance) stream for messages
+     * - Handles player and gate messages
+     * - Sets connection state via repository
      */
     fun startSseStream() {
+        monitorJob?.cancel()
         viewModelScope.launch {
             try {
                 repository.startSseStream(sessionId.value)
                     .collect { message ->
                         when {
-                            message.contains("drMemberCPPlayerData") -> handlePlayerData(message)
+                            message.contains("drMemberCPPlayerData") -> {
+                                if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                                    handlePlayerData(message)
+                                }
+                            }
                             message.contains("drMemberCPGateArray") -> handleGateData(message)
                             message.contains("test") -> {
                                 lastAliveTimestamp = System.currentTimeMillis()
@@ -221,21 +222,21 @@ class GateViewModel(
 
         monitorJob = viewModelScope.launch {
             while (isActive) {
-                val now = System.currentTimeMillis()
-                val isAlive = (now - lastAliveTimestamp) < 10_000
-                _isConnectionAlive.value = isAlive
-
-                if (!isAlive && !retryingSession) {
-                    Log.w("SSE", "Connection lost, Scheduling retry...")
-                    _connectionsStatus.value = "Disconnected"
+                if (!repository.isSseConnected.value && !retryingSession) {
+                    Log.w("SSE", "Connection lost, scheduling retry...")
                     scheduleRetrySession()
                 }
-
                 delay(10_000)
             }
         }
     }
 
+    /**
+     * Handles player-related SSE (Waggledance) messages
+     * - Parses payload
+     * - Convert image data from base64
+     * - Notifies UI and enqueues player
+     */
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     private fun handlePlayerData(message: String) {
         val payload = repository.getPayload(message)
@@ -247,6 +248,7 @@ class GateViewModel(
                 val passphotosArray = payload.getAsJsonArray("passphotos")
                 val firstPhotoObject = passphotosArray[0].asJsonObject
                 val base64ImageData = firstPhotoObject.get("data").asString
+                val isBlacklisted = payload.get("isBlacklisted")?.asBoolean == true
 
                 val imageBytes = Base64.decode(base64ImageData, Base64.DEFAULT)
 
@@ -259,8 +261,9 @@ class GateViewModel(
                         secondName = playerObj?.get("secondName")?.asString.orEmpty(),
                         lastName = playerObj?.get("lastName")?.asString.orEmpty(),
                         lastName2 = playerObj?.get("lastName2")?.asString.orEmpty(),
-                        image = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                    )
+                        image = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size),
+                        isBlacklisted = isBlacklisted
+                    ),
                 )
 
 
@@ -273,8 +276,9 @@ class GateViewModel(
     }
 
     /**
-     * Handle gate messages:
-     * - Remove accepted or denied players form the queue
+     * Handle gate related SSE (Waggledance) messages
+     * - Parses payload
+     * - Removes player from queue based on gate response
      */
     private fun handleGateData(message: String) {
         val payload = repository.getPayload(message)
@@ -292,7 +296,6 @@ class GateViewModel(
             state = gateState
         )
 
-        _gateResponse.value = response
         Log.d("SSE - gate", "drMemberCPGateArray: $response")
     }
 

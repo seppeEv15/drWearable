@@ -25,14 +25,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight.Companion.Bold
 import androidx.compose.ui.text.font.FontWeight.Companion.W800
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,6 +43,7 @@ import androidx.wear.compose.material.Text
 import com.example.drwearable.R
 import com.example.drwearable.presentation.theme.Black
 import com.example.drwearable.presentation.theme.BlackCustomGradient
+import com.example.drwearable.presentation.theme.BlacklistGradient
 import com.example.drwearable.presentation.theme.DrWearableTheme
 import com.example.drwearable.presentation.theme.GreenGradient
 import com.example.drwearable.presentation.theme.Grey
@@ -64,6 +64,9 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
     val isConnected by viewModel.isSseConnected.collectAsState()
     var showDisconnectedScreen by remember { mutableStateOf(false) }
     val entryState by viewModel.borderState.collectAsState()
+
+    var wasBlacklisted by remember { mutableStateOf(false) }
+    var lastPlayerBlacklistedImage by remember { mutableStateOf<Int?>(null) }
 
     val borderBrush = when (entryState) {
         BorderState.Accepted -> GreenGradient
@@ -116,13 +119,37 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
                         .clip(CircleShape)
                         .border(
                             width = 3.dp,
-                            brush = borderBrush,
+                            brush = if (currentPlayer?.player?.isBlacklisted == true) {
+                                RedGradient
+                            } else {
+                                borderBrush
+                            },
                             shape = CircleShape
                         )
                 ) {
                     VerticalSwipeDetector (
-                        onSwipeUp = { viewModel.setStatusAccepted() },
-                        onSwipeDown = { viewModel.setStatusDenied() }
+                        onSwipeUp = {
+                           if (currentPlayer != null) {
+                                if (currentPlayer?.player?.isBlacklisted == true) {
+                                    viewModel.setStatusDenied()
+                                    wasBlacklisted = true
+                                    lastPlayerBlacklistedImage = R.drawable.new_user_block
+                                } else {
+                                    viewModel.setStatusAccepted()
+                                    wasBlacklisted = false
+                                    lastPlayerBlacklistedImage = null
+                                }
+                           }
+                        },
+                        onSwipeDown = {
+                           if (currentPlayer != null) {
+                                viewModel.setStatusDenied()
+                                wasBlacklisted = currentPlayer?.player?.isBlacklisted == true
+                                if (wasBlacklisted) {
+                                    lastPlayerBlacklistedImage = R.drawable.new_user_block
+                                }
+                           }
+                        }
                     ) {
                         Box {
                             playerImage?.let {
@@ -134,12 +161,16 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
                                         .fillMaxSize()
                                         .align(Alignment.Center)
                                 )
-
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .matchParentSize()
-                                        .background(BlackCustomGradient)
+                                        .background(
+                                            if (currentPlayer?.player?.isBlacklisted == true) {
+                                                BlacklistGradient
+                                            } else {
+                                                BlackCustomGradient
+                                            })
                                 )
                             }
                             Column(
@@ -160,7 +191,11 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
                                                 id = if (useGreenImage) {
                                                     R.drawable.account_user_green
                                                 } else if (useRedImage) {
-                                                    R.drawable.account_user_red
+                                                    if (wasBlacklisted) {
+                                                        lastPlayerBlacklistedImage ?: R.drawable.account_user_red
+                                                    } else {
+                                                        R.drawable.account_user_red
+                                                    }
                                                 } else
                                                 R.drawable.account_user_default
                                             ),
@@ -225,6 +260,31 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
                                                 fontFamily = FontFamily.SansSerif
                                             )
                                         )
+                                        if (currentPlayer?.player?.isBlacklisted == true) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomCenter)
+                                                    .padding(bottom = 20.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Image(
+                                                    painter = painterResource(id = R.drawable.warning_svgrepo_com),
+                                                    contentDescription = "Blacklist Icon",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.size(4.dp))
+                                                Text(
+                                                    text = "Blacklisted",
+                                                    style = TextStyle(
+                                                        color = Color.White,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = Bold,
+                                                        textAlign = TextAlign.Center,
+                                                        fontFamily = FontFamily.SansSerif
+                                                    )
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }

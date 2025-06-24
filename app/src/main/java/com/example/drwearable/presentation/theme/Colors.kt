@@ -52,6 +52,14 @@ val BlackCustomGradient = Brush.linearGradient(
     end = Offset(0f, Float.POSITIVE_INFINITY)
 )
 
+val BlacklistGradient = Brush.linearGradient(
+    0.0f to Color(0x00B70024),
+    0.51f to Color(0x55B70024),
+    0.84f to RedGradientEnd,
+    start = Offset(0f, 0f),
+    end = Offset(0f, Float.POSITIVE_INFINITY)
+)
+
 val WhiteGradient = Brush.linearGradient(
     colors = listOf(
         Color.White.copy(alpha = 0.98f),
