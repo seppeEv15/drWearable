@@ -2,7 +2,6 @@ package com.example.drwearable.presentation.data.model
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,33 +23,25 @@ data class Player(
 
 class PlayerQueueManager {
     @SuppressLint("MutableCollectionMutableState")
-    private val _queue = mutableStateOf(ArrayDeque<PlayerResponse>())
-    val queue: ArrayDeque<PlayerResponse> get() = _queue.value
+    private val _queue = MutableStateFlow<List<PlayerResponse>>(emptyList())
+    val queue: StateFlow<List<PlayerResponse>> = _queue.asStateFlow()
 
     private val _currentPlayer = MutableStateFlow<PlayerResponse?>(null)
     val currentPlayer: StateFlow<PlayerResponse?> = _currentPlayer.asStateFlow()
 
     fun enQueue(player: PlayerResponse) {
-        _queue.value.add(player)
-        updateCurrentPlayer()
+        _queue.value = _queue.value + player
     }
 
     fun acceptNext() {
-        updateCurrentPlayer()
+        _queue.value = _queue.value.drop(1)
     }
 
     fun denyNext() {
-        updateCurrentPlayer()
+        _queue.value = _queue.value.drop(1)
     }
 
     fun removeByPosition(position: String) {
-        val updatedQueue = _queue.value.filterNot { it.position == position }
-        _queue.value = ArrayDeque(updatedQueue)
-        updateCurrentPlayer()
-    }
-
-    private fun updateCurrentPlayer() {
-        _queue.value = ArrayDeque(_queue.value) // Trigger recomposition
-        _currentPlayer.value = _queue.value.firstOrNull()
+        _queue.value = _queue.value.filterNot { it.position == position }
     }
 }
