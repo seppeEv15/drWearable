@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,19 +35,27 @@ import com.example.drwearable.presentation.ui.components.TimeTextWithSeconds
 import com.example.drwearable.presentation.ui.components.VerticalSwipeDetector
 import com.example.drwearable.presentation.ui.components.gate.PlayerInfoContent
 import kotlinx.coroutines.delay
+import java.util.Queue
 
 @Composable
 fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvider.Factory)) {
-    val uiState by viewModel.uiState.collectAsState()
-    val queue by viewModel.queueManager.queue.collectAsState()
+//    val uiState by viewModel.uiState.collectAsState()
+    val queue by viewModel.queue.collectAsState()
+//    val currentPlayer by viewModel.queueManager.currentPlayer.collectAsState()
 
-    val uiStateText = when (uiState) {
-        is GateUiState.NoConnection -> "No connection"
-        is GateUiState.Idle -> "Idle"
-        is GateUiState.PlayerWaiting -> "Player Waiting : ${(uiState as GateUiState.PlayerWaiting).player.player.firstName}"
-        is GateUiState.PlayerAccepted -> "Player Accepted: ${(uiState as GateUiState.PlayerAccepted).playerName}"
-        is GateUiState.PlayerDenied -> "Player Denied: ${(uiState as GateUiState.PlayerDenied).playerName}"
-    }
+//    LaunchedEffect(queue, currentPlayer) {
+//        Log.d("GateScreen", "Recomposition triggered: Queue: $queue, Current Player: $currentPlayer")
+//    }
+
+//    Log.d("GateScreen", "UI State: $uiState, Queue: $queue}")
+
+//    val uiStateText = when (uiState) {
+//        is GateUiState.NoConnection -> "No connection"
+//        is GateUiState.Idle -> "Idle"
+//        is GateUiState.PlayerWaiting -> "Player Waiting : ${(uiState as GateUiState.PlayerWaiting).player.player.firstName}"
+//        is GateUiState.PlayerAccepted -> "Player Accepted: ${(uiState as GateUiState.PlayerAccepted).playerName}"
+//        is GateUiState.PlayerDenied -> "Player Denied: ${(uiState as GateUiState.PlayerDenied).playerName}"
+//    }
 //    val swipeText by viewModel.swipeText.collectAsState()
 //    val currentPlayer by viewModel.currentPlayer.collectAsState()
     val isConnected by viewModel.isSseConnected.collectAsState()
@@ -98,9 +108,13 @@ fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvid
                 modifier = Modifier.fillMaxSize()
             ) {
                 Column(modifier = Modifier.align(Alignment.Center)) {
-                    Text(text = uiStateText)
-                    queue.forEach { player ->
-                        Text(text = "${player.player.firstName} ${player.player.lastName}")
+//                    Text(text = uiStateText)
+//                    Text(text = "Current player: ${currentPlayer?.player?.firstName}")
+                    Text(text = "Queue:")
+                    LazyColumn {
+                        items(items = queue) { player ->
+                            Text(text = "${player.player.firstName} ${player.player.lastName}")
+                        }
                     }
                 }
             }

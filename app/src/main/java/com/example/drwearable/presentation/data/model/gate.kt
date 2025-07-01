@@ -7,7 +7,6 @@ data class GateResponse(
 
 // Can maybe be placed in a separate gateState file
 enum class GateState(val value: String) {
-    IDLE("Idle"),
     CLOSED("Closed"),
     GETTING_DATA("GettingData"),
     WAITING_FOR_APPROVEMENT("WaitingForApprovement"),
