@@ -16,3 +16,9 @@ data class Player(
     val image: Bitmap,
     val isBlacklisted: Boolean
 )
+
+data class LastPlayer(
+    val fullName: String,
+    val isBlacklisted: Boolean,
+    val isAccepted: Boolean
+)

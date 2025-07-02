@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.drwearable.presentation.data.WaggledanceRepository
 import com.example.drwearable.presentation.data.model.GateAccessPayload
 import com.example.drwearable.presentation.data.model.GateState
+import com.example.drwearable.presentation.data.model.LastPlayer
 import com.example.drwearable.presentation.data.model.Player
 import com.example.drwearable.presentation.data.model.PlayerResponse
 import com.google.gson.JsonNull
@@ -48,8 +49,8 @@ class GateViewModel(
 
     private val lastGateStates = mutableMapOf<String, String>()
 
-    private val _swipeText = MutableStateFlow("")
-    val swipeText: StateFlow<String> = _swipeText.asStateFlow()
+    private val _lastHandledPlayer = MutableStateFlow<LastPlayer?>(null)
+    val lastHandledPlayer: StateFlow<LastPlayer?> = _lastHandledPlayer.asStateFlow()
 
     private val _sessionId = MutableStateFlow("")
     val sessionId: StateFlow<String> = _sessionId.asStateFlow()
@@ -67,14 +68,23 @@ class GateViewModel(
         initSession()
     }
 
+    /**
+     * Adds a new player to the queue by appending the given player to the current list of players
+     */
     fun enQueue(player: PlayerResponse) {
         _queue.value = _queue.value + player
     }
 
+    /**
+     * Removes a player from the queue based on their position by filtering out the player with the specified position
+     */
     fun removeByPosition(position: String) {
         _queue.value = _queue.value.filterNot { it.position == position }.toList()
     }
 
+    /**
+     * Clears the entire queue by setting it to an empty list
+     */
     fun clearQueue() {
         _queue.value = emptyList()
     }
@@ -131,24 +141,27 @@ class GateViewModel(
         viewModelScope.launch {
             try {
                 val currentPlayer = _queue.value[0]
-//                val playerName = "${currentPlayer.player.firstName} ${currentPlayer.player.lastName}"
+                val fullName = "${currentPlayer.player.firstName} ${currentPlayer.player.lastName}"
                 val response = repository.sendAccessEvent(
-                    sessionId = sessionId.value.toString(),
+                    sessionId = sessionId.value,
                     payload =  GateAccessPayload(position = currentPlayer.position, isAccessGranted = true)
                 )
 
                 if (response.isSuccessful) {
-//                    _swipeText.value = "Accepted $playerName"
+                    _lastHandledPlayer.value = LastPlayer(
+                        fullName,
+                        isBlacklisted = currentPlayer.player.isBlacklisted,
+                        isAccepted = true
+                    )
                     _borderState.value = BorderState.Green
                     delay(3000)
+                    _lastHandledPlayer.value = null
                     _borderState.value = BorderState.Neutral
-//                    _swipeText.value = ""
                 } else {
-//                    _swipeText.value = "Failed to accept: ${response.code()}"
                     Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
                 }
             } catch (e: Exception) {
-                _swipeText.value = "Error sending acceptance"
+//                _swipeText.value = "Error sending acceptance"
                 Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
             }
         }
@@ -161,7 +174,7 @@ class GateViewModel(
         viewModelScope.launch {
             try {
                 val currentPlayer = _queue.value[0]
-//                val playerName = "${currentPlayer.player.firstName} ${currentPlayer.player.lastName}"
+                val fullName = "${currentPlayer.player.firstName} ${currentPlayer.player.lastName}"
                 val response = repository.sendAccessEvent(
                     sessionId = sessionId.value,
                     payload = GateAccessPayload(
@@ -171,18 +184,20 @@ class GateViewModel(
                 )
 
                 if (response.isSuccessful) {
-//                    _swipeText.value = "Denied $playerName"
+                    _lastHandledPlayer.value = LastPlayer(
+                        fullName,
+                        isBlacklisted = currentPlayer.player.isBlacklisted,
+                        isAccepted = false
+                    )
                     _borderState.value = BorderState.Red
-                    delay(3000)
+                    delay(5000)
+                    _lastHandledPlayer.value = null
                     _borderState.value = BorderState.Neutral
-//                    _swipeText.value = ""
                 } else {
-//                    _swipeText.value = "Failed to deny: ${response.code()}"
                     Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
                 }
 
             } catch (e: Exception) {
-//                _swipeText.value = "Error sending denial"
                 Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
             }
         }
@@ -229,7 +244,7 @@ class GateViewModel(
                     Log.w("SSE", "Connection lost, scheduling retry...")
                     scheduleRetrySession()
                 }
-                delay(10_000)
+                delay(5_000)
             }
         }
     }
@@ -251,8 +266,12 @@ class GateViewModel(
                 if (!isDuplicate) {
                     val playerObj = payload.getAsJsonObject("player")
                     val passphotosArray = payload.getAsJsonArray("passphotos")
-                    val firstPhotoObject = passphotosArray[0].asJsonObject
-                    val base64ImageData = firstPhotoObject.get("data").asString
+                    val photoObject = if (passphotosArray.size() > 1) {
+                        passphotosArray[1].asJsonObject
+                    } else {
+                        passphotosArray[0].asJsonObject
+                    }
+                    val base64ImageData = photoObject.get("data").asString
                     val isBlacklisted = payload.get("isBlacklisted")?.asBoolean == true
 
                     val imageBytes = Base64.decode(base64ImageData, Base64.DEFAULT)
