@@ -2,7 +2,6 @@ package com.example.drwearable.presentation.ui.screens.gate
 
 import android.Manifest
 import android.app.Application
-import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.util.Base64
@@ -13,12 +12,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.drwearable.presentation.data.WaggledanceRepository
 import com.example.drwearable.presentation.data.model.GateAccessPayload
-import com.example.drwearable.presentation.data.model.GateResponse
 import com.example.drwearable.presentation.data.model.GateState
+import com.example.drwearable.presentation.data.model.LastPlayer
 import com.example.drwearable.presentation.data.model.Player
-import com.example.drwearable.presentation.data.model.PlayerQueueManager
 import com.example.drwearable.presentation.data.model.PlayerResponse
-import com.example.drwearable.presentation.notifications.NotificationHelper
 import com.google.gson.JsonNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -30,8 +27,8 @@ import kotlinx.coroutines.launch
 
 sealed class BorderState {
     object Neutral : BorderState()
-    object Accepted : BorderState()
-    object Denied : BorderState()
+    object Green : BorderState()
+    object Red : BorderState()
 }
 
 /**
@@ -47,18 +44,18 @@ class GateViewModel(
 ) : AndroidViewModel(application) {
     private val appContext = getApplication<Application>().applicationContext
 
-    private val queueManager = PlayerQueueManager()
+    private val _queue = MutableStateFlow<List<PlayerResponse>>(emptyList())
+    val queue: StateFlow<List<PlayerResponse>> = _queue.asStateFlow()
 
-    val currentPlayer = queueManager.currentPlayer
-    private val _swipeText = MutableStateFlow("")
-    val swipeText: StateFlow<String> = _swipeText.asStateFlow()
+    private val lastGateStates = mutableMapOf<String, String>()
+
+    private val _lastHandledPlayer = MutableStateFlow<LastPlayer?>(null)
+    val lastHandledPlayer: StateFlow<LastPlayer?> = _lastHandledPlayer.asStateFlow()
 
     private val _sessionId = MutableStateFlow("")
     val sessionId: StateFlow<String> = _sessionId.asStateFlow()
 
-    private var lastAliveTimestamp = System.currentTimeMillis()
-
-    private val _borderState = MutableStateFlow<BorderState>(BorderState.Neutral)
+    private var _borderState = MutableStateFlow<BorderState>(BorderState.Neutral)
     val borderState: StateFlow<BorderState> = _borderState.asStateFlow()
 
     val isSseConnected: StateFlow<Boolean> = repository.isSseConnected
@@ -69,6 +66,27 @@ class GateViewModel(
 
     init {
         initSession()
+    }
+
+    /**
+     * Adds a new player to the queue by appending the given player to the current list of players
+     */
+    fun enQueue(player: PlayerResponse) {
+        _queue.value = _queue.value + player
+    }
+
+    /**
+     * Removes a player from the queue based on their position by filtering out the player with the specified position
+     */
+    fun removeByPosition(position: String) {
+        _queue.value = _queue.value.filterNot { it.position == position }.toList()
+    }
+
+    /**
+     * Clears the entire queue by setting it to an empty list
+     */
+    fun clearQueue() {
+        _queue.value = emptyList()
     }
 
     /**
@@ -122,29 +140,28 @@ class GateViewModel(
     fun setStatusAccepted() {
         viewModelScope.launch {
             try {
+                val currentPlayer = _queue.value[0]
+                val fullName = "${currentPlayer.player.firstName} ${currentPlayer.player.lastName}"
                 val response = repository.sendAccessEvent(
-                    sessionId = sessionId.value.toString(),
-                    payload =  GateAccessPayload(position = currentPlayer.value?.position.toString(), isAccessGranted = true)
+                    sessionId = sessionId.value,
+                    payload =  GateAccessPayload(position = currentPlayer.position, isAccessGranted = true)
                 )
 
-                val playerName = currentPlayer.value?.player?.let {
-                    "${it.firstName} ${it.lastName}".trim()
-                } ?: "Player"
-
                 if (response.isSuccessful) {
-                    queueManager.acceptNext()
-                    _swipeText.value = "Accepted $playerName"
-                    _borderState.value = BorderState.Accepted
+                    _lastHandledPlayer.value = LastPlayer(
+                        fullName,
+                        isBlacklisted = currentPlayer.player.isBlacklisted,
+                        isAccepted = true
+                    )
+                    _borderState.value = BorderState.Green
                     delay(3000)
+                    _lastHandledPlayer.value = null
                     _borderState.value = BorderState.Neutral
-                    _swipeText.value = ""
                 } else {
-                    _swipeText.value = "Failed to accept: ${response.code()}"
                     Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
                 }
-
             } catch (e: Exception) {
-                _swipeText.value = "Error sending acceptance"
+//                _swipeText.value = "Error sending acceptance"
                 Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
             }
         }
@@ -156,30 +173,31 @@ class GateViewModel(
     fun setStatusDenied() {
         viewModelScope.launch {
             try {
+                val currentPlayer = _queue.value[0]
+                val fullName = "${currentPlayer.player.firstName} ${currentPlayer.player.lastName}"
                 val response = repository.sendAccessEvent(
-                    sessionId = sessionId.value.toString(),
-                    payload = GateAccessPayload(position = currentPlayer.value?.position.toString(), isAccessGranted = false)
+                    sessionId = sessionId.value,
+                    payload = GateAccessPayload(
+                        position = currentPlayer.position,
+                        isAccessGranted = false
+                    )
                 )
 
-                val playerName = currentPlayer.value?.player?.let {
-                    "${it.firstName} ${it.lastName}".trim()
-                } ?: "Player"
-
                 if (response.isSuccessful) {
-                    queueManager.denyNext()
-                    _swipeText.value = "Denied $playerName"
-                    _borderState.value = BorderState.Denied
-
-                    delay(3000)
+                    _lastHandledPlayer.value = LastPlayer(
+                        fullName,
+                        isBlacklisted = currentPlayer.player.isBlacklisted,
+                        isAccepted = false
+                    )
+                    _borderState.value = BorderState.Red
+                    delay(5000)
+                    _lastHandledPlayer.value = null
                     _borderState.value = BorderState.Neutral
-                    _swipeText.value = ""
                 } else {
-                    _swipeText.value = "Failed to deny: ${response.code()}"
                     Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
                 }
 
             } catch (e: Exception) {
-                _swipeText.value = "Error sending denial"
                 Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
             }
         }
@@ -203,9 +221,6 @@ class GateViewModel(
                                 }
                             }
                             message.contains("drMemberCPGateArray") -> handleGateData(message)
-                            message.contains("test") -> {
-                                lastAliveTimestamp = System.currentTimeMillis()
-                            }
                         }
                     }
             } catch (e: Exception) {
@@ -215,6 +230,11 @@ class GateViewModel(
         startConnectionMonitor()
     }
 
+    /**
+     * Monitors the SSE (Waggledance) connection status and retries session initialization if the connection is lost
+     * - Periodically checks if the SSE (Waggledance) connection is active every 10 seconds
+     * - If disconnected and not already retrying, schedule a session retry
+     */
     private fun startConnectionMonitor() {
         if (monitorJob?.isActive == true) return
 
@@ -224,7 +244,7 @@ class GateViewModel(
                     Log.w("SSE", "Connection lost, scheduling retry...")
                     scheduleRetrySession()
                 }
-                delay(10_000)
+                delay(5_000)
             }
         }
     }
@@ -238,37 +258,43 @@ class GateViewModel(
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     private fun handlePlayerData(message: String) {
         val payload = repository.getPayload(message)
-        Log.d("SSE - payload", "$payload")
         if (payload?.get("hasData")?.asBoolean == true) {
-            // Filter out "Query" type
             if (payload.get("type")?.asString == "Gate") {
-                val playerObj = payload.getAsJsonObject("player")
-                val passphotosArray = payload.getAsJsonArray("passphotos")
-                val firstPhotoObject = passphotosArray[0].asJsonObject
-                val base64ImageData = firstPhotoObject.get("data").asString
-                val isBlacklisted = payload.get("isBlacklisted")?.asBoolean == true
+                val playerId = payload.get("playerId")?.takeIf { it !is JsonNull }?.asInt ?: -1
+                val isDuplicate = queue.value.any { it.playerId == playerId}
 
-                val imageBytes = Base64.decode(base64ImageData, Base64.DEFAULT)
+                if (!isDuplicate) {
+                    val playerObj = payload.getAsJsonObject("player")
+                    val passphotosArray = payload.getAsJsonArray("passphotos")
+                    val photoObject = if (passphotosArray.size() > 1) {
+                        passphotosArray[1].asJsonObject
+                    } else {
+                        passphotosArray[0].asJsonObject
+                    }
+                    val base64ImageData = photoObject.get("data").asString
+                    val isBlacklisted = payload.get("isBlacklisted")?.asBoolean == true
 
-                // TODO: verify these safe calls, cause it did not work
-                val response = PlayerResponse(
-                    position = payload.get("position")?.takeIf { it !is JsonNull }?.asString ?: "",
-                    playerId = payload.get("playerId")?.takeIf { it !is JsonNull }?.asInt ?: -1,
-                    player = Player(
-                        firstName = playerObj?.get("firstName")?.asString.orEmpty(),
-                        secondName = playerObj?.get("secondName")?.asString.orEmpty(),
-                        lastName = playerObj?.get("lastName")?.asString.orEmpty(),
-                        lastName2 = playerObj?.get("lastName2")?.asString.orEmpty(),
-                        image = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size),
-                        isBlacklisted = isBlacklisted
-                    ),
-                )
+                    val imageBytes = Base64.decode(base64ImageData, Base64.DEFAULT)
 
+                    val response = PlayerResponse(
+                        position = payload.get("position")?.takeIf { it !is JsonNull }?.asString ?: "",
+                        playerId,
+                        player = Player(
+                            firstName = playerObj?.get("firstName")?.asString.orEmpty(),
+                            secondName = playerObj?.get("secondName")?.asString.orEmpty(),
+                            lastName = playerObj?.get("lastName")?.asString.orEmpty(),
+                            lastName2 = playerObj?.get("lastName2")?.asString.orEmpty(),
+                            image = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size),
+                            isBlacklisted = isBlacklisted
+                        )
+                    )
+                    if (isBlacklisted) {
+                        _borderState.value = BorderState.Red
+                    }
 
-                onPlayerScanned(response, appContext)
-                Log.d("SSE - blacklist", "isBlacklisted: ${payload.get("isBlacklisted")?.asBoolean}")
-                Log.d("SSE - player", "drMemberCPPlayerData: $response")
-                Log.d("SSE - playerObj", "$playerObj")
+                    enQueue(response)
+//                    NotificationHelper.notifyNewPlayer(appContext, response)
+                }
             }
         }
     }
@@ -279,33 +305,64 @@ class GateViewModel(
      * - Removes player from queue based on gate response
      */
     private fun handleGateData(message: String) {
+        Log.d("GATE", message)
         val payload = repository.getPayload(message)
         val list = repository.getList(payload.toString())
-        val gate = list?.firstOrNull()?.asJsonObject
-        val gateState = gate?.get("state")?.asString.orEmpty()
-        val gatePosition = gate?.get("position")?.asString.orEmpty()
 
-        if (gateState == GateState.ACCESS_GRANTED.value || gateState == GateState.ACCESS_DENIED.value ) {
-            queueManager.removeByPosition(gatePosition)
+        list?.mapNotNull { it.asJsonObject }?.forEach { gate ->
+            val gatePosition = gate.get("position")?.asString.orEmpty()
+            val gateState = gate.get("state")?.asString.orEmpty()
+
+            if (lastGateStates[gatePosition] == gateState) {
+                return@forEach
+            }
+
+            lastGateStates[gatePosition] = gateState
+
+            when (gateState) {
+                GateState.ACCESS_GRANTED.value, GateState.ACCESS_DENIED.value -> {
+                    val isGatePositionInQueue = _queue.value.any { it.position == gatePosition }
+                    if (isGatePositionInQueue) {
+                        removeByPosition(gatePosition)
+                    }
+                }
+                GateState.READY_FOR_USE.value -> {
+                    val isGatePositionInQueue = _queue.value.any { it.position == gatePosition }
+                    if (isGatePositionInQueue) {
+                        removeByPosition(gatePosition)
+                    }
+                }
+            }
         }
 
-        val response = GateResponse(
-            position = gatePosition,
-            state = gateState
-        )
+        val allGatesReadyForUse = list?.all {
+            it.asJsonObject.get("state")?.asString.orEmpty() == GateState.READY_FOR_USE.value
+        } == true
 
-        Log.d("SSE - gate", "drMemberCPGateArray: $response")
+        if (!allGatesReadyForUse) {
+            for (gate in list?.mapNotNull { it.asJsonObject }!!) {
+                val gateState = gate.get("state")?.asString.orEmpty()
+                val gatePosition = gate.get("position")?.asString.orEmpty()
+
+                when (gateState) {
+                    GateState.ACCESS_GRANTED.value, GateState.ACCESS_DENIED.value -> {
+                        val isGatePositionInQueue = _queue.value.any { it.position == gatePosition }
+                        if (isGatePositionInQueue) {
+                            Log.d("GATE", "ACCEPT/DENY: Player at position $gatePosition accepted/denied: $payload")
+                            removeByPosition(gatePosition)
+                        }
+                    }
+                    GateState.READY_FOR_USE.value -> {
+                        val isGatePositionInQueue = _queue.value.any { it.position == gatePosition }
+                        if (isGatePositionInQueue) {
+                            Log.d("GATE", "IDLE: Player at position $gatePosition removed from queue: $payload")
+                            removeByPosition(gatePosition)
+                        }
+                    }
+                }
+            }
+        } else {
+            clearQueue()
+        }
     }
-
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
-    fun onPlayerScanned(player: PlayerResponse, context: Context) {
-        queueManager.enQueue(player)
-        Log.d("NOTIFICATION", "Triggering notification for ${player.player.firstName}")
-        NotificationHelper.notifyNewPlayer(context, player)
-    }
-
-    // Check if needed/ how to do this
-//    fun stopSseStream() {
-//
-//    }
 }
