@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.example.drwearable.R
+import com.example.drwearable.presentation.theme.GreenGradientStart
+import com.example.drwearable.presentation.theme.RedGradientStart
 
 @Composable
 fun SlideDecisionButton(
@@ -60,7 +62,7 @@ fun SlideDecisionButton(
         modifier = modifier
             .background(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(Color(0xFF00C853), Color.Black, Color(0xFFD50000))
+                    colors = listOf(GreenGradientStart, Color.Black, RedGradientStart)
                 ),
                 shape = RoundedCornerShape(50)
             )
