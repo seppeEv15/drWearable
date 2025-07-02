@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.drwearable.presentation.data.WaggledanceRepository
+import com.example.drwearable.presentation.data.model.GateAccessPayload
 import com.example.drwearable.presentation.data.model.GateState
 import com.example.drwearable.presentation.data.model.Player
 import com.example.drwearable.presentation.data.model.PlayerResponse
@@ -25,16 +26,8 @@ import kotlinx.coroutines.launch
 
 sealed class BorderState {
     object Neutral : BorderState()
-    object Accepted : BorderState()
-    object Denied : BorderState()
-}
-
-sealed class GateUiState {
-    object NoConnection : GateUiState()
-    object Idle : GateUiState()
-    data class PlayerWaiting (val player: PlayerResponse) : GateUiState()
-    data class PlayerAccepted (val playerName: String) : GateUiState()
-    data class PlayerDenied (val playerName: String): GateUiState()
+    object Green : BorderState()
+    object Red : BorderState()
 }
 
 /**
@@ -50,40 +43,8 @@ class GateViewModel(
 ) : AndroidViewModel(application) {
     private val appContext = getApplication<Application>().applicationContext
 
-//    private val _uiState = MutableStateFlow<GateUiState>(GateUiState.NoConnection)
-//    val uiState: StateFlow<GateUiState> = _uiState.asStateFlow()
-
-//    val queueManager = PlayerQueueManager()
-
-//    -----------------
     private val _queue = MutableStateFlow<List<PlayerResponse>>(emptyList())
     val queue: StateFlow<List<PlayerResponse>> = _queue.asStateFlow()
-
-    private val _currentPlayer = MutableStateFlow<PlayerResponse?>(null)
-
-    fun enQueue(player: PlayerResponse) {
-        _queue.value = _queue.value + player
-    }
-
-    fun acceptNext() {
-        _queue.value = _queue.value.drop(1)
-    }
-
-    fun denyNext() {
-        _queue.value = _queue.value.drop(1)
-    }
-
-    fun removeByPosition(position: String) {
-        Log.d("PLAYER", "Before $position ${_queue.value}")
-        _queue.value = _queue.value.filterNot { it.position == position }.toList()
-        Log.d("PLAYER", "After $position ${_queue.value}")
-    }
-
-    fun clearQueue() {
-        Log.d("CLEAR", "Queue has been cleared")
-        _queue.value = emptyList()
-    }
-//    -----------------
 
     private val lastGateStates = mutableMapOf<String, String>()
 
@@ -93,7 +54,7 @@ class GateViewModel(
     private val _sessionId = MutableStateFlow("")
     val sessionId: StateFlow<String> = _sessionId.asStateFlow()
 
-    private val _borderState = MutableStateFlow<BorderState>(BorderState.Neutral)
+    private var _borderState = MutableStateFlow<BorderState>(BorderState.Neutral)
     val borderState: StateFlow<BorderState> = _borderState.asStateFlow()
 
     val isSseConnected: StateFlow<Boolean> = repository.isSseConnected
@@ -104,6 +65,18 @@ class GateViewModel(
 
     init {
         initSession()
+    }
+
+    fun enQueue(player: PlayerResponse) {
+        _queue.value = _queue.value + player
+    }
+
+    fun removeByPosition(position: String) {
+        _queue.value = _queue.value.filterNot { it.position == position }.toList()
+    }
+
+    fun clearQueue() {
+        _queue.value = emptyList()
     }
 
     /**
@@ -117,12 +90,10 @@ class GateViewModel(
             result.onSuccess { id ->
                 Log.d("SESSION_ID", "Session ID: $id")
                 _sessionId.value = id
-//                _uiState.value = GateUiState.Idle
                 startSseStream()
             }
             result.onFailure { error ->
                 Log.e("SESSION_ID", "Error fetching session ID: ${error.localizedMessage}")
-//                _uiState.value = GateUiState.NoConnection
                 scheduleRetrySession()
             }
         }
@@ -156,78 +127,66 @@ class GateViewModel(
     /**
      * Accept a player
      */
-//    fun setStatusAccepted() {
-//        viewModelScope.launch {
-//            try {
-//                val response = repository.sendAccessEvent(
-//                    sessionId = sessionId.value.toString(),
-//                    payload =  GateAccessPayload(position = currentPlayer.value?.position.toString(), isAccessGranted = true)
-//                )
-//
-//                val playerName = currentPlayer.value?.player?.let {
-//                    "${it.firstName} ${it.lastName}".trim()
-//                } ?: "Player"
-//
-//                if (response.isSuccessful) {
-//                    queueManager.acceptNext()
-////                    _uiState.value = GateUiState.PlayerAccepted(playerName)
+    fun setStatusAccepted() {
+        viewModelScope.launch {
+            try {
+                val currentPlayer = _queue.value[0]
+//                val playerName = "${currentPlayer.player.firstName} ${currentPlayer.player.lastName}"
+                val response = repository.sendAccessEvent(
+                    sessionId = sessionId.value.toString(),
+                    payload =  GateAccessPayload(position = currentPlayer.position, isAccessGranted = true)
+                )
+
+                if (response.isSuccessful) {
 //                    _swipeText.value = "Accepted $playerName"
-//                    _borderState.value = BorderState.Accepted
-//                    delay(3000)
-//                    _borderState.value = BorderState.Neutral
-////                    _uiState.value = GateUiState.Idle
+                    _borderState.value = BorderState.Green
+                    delay(3000)
+                    _borderState.value = BorderState.Neutral
 //                    _swipeText.value = ""
-//                } else {
+                } else {
 //                    _swipeText.value = "Failed to accept: ${response.code()}"
-//                    Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
-////                    _uiState.value = GateUiState.Idle
-//                }
-//
-//            } catch (e: Exception) {
-//                _swipeText.value = "Error sending acceptance"
-//                Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
-////                _uiState.value = GateUiState.Idle
-//            }
-//        }
-//    }
+                    Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
+                }
+            } catch (e: Exception) {
+                _swipeText.value = "Error sending acceptance"
+                Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
+            }
+        }
+    }
 
     /**
      * Deny a player
      */
-//    fun setStatusDenied() {
-//        viewModelScope.launch {
-//            try {
-//                val response = repository.sendAccessEvent(
-//                    sessionId = sessionId.value.toString(),
-//                    payload = GateAccessPayload(position = currentPlayer.value?.position.toString(), isAccessGranted = false)
-//                )
-//
-//                val playerName = currentPlayer.value?.player?.let {
-//                    "${it.firstName} ${it.lastName}".trim()
-//                } ?: "Player"
-//
-//                if (response.isSuccessful) {
-//                    queueManager.denyNext()
+    fun setStatusDenied() {
+        viewModelScope.launch {
+            try {
+                val currentPlayer = _queue.value[0]
+//                val playerName = "${currentPlayer.player.firstName} ${currentPlayer.player.lastName}"
+                val response = repository.sendAccessEvent(
+                    sessionId = sessionId.value,
+                    payload = GateAccessPayload(
+                        position = currentPlayer.position,
+                        isAccessGranted = false
+                    )
+                )
+
+                if (response.isSuccessful) {
 //                    _swipeText.value = "Denied $playerName"
-//                    _borderState.value = BorderState.Denied
-////                    _uiState.value = GateUiState.PlayerDenied(playerName)
-//                    delay(3000)
-////                    _uiState.value = GateUiState.Idle
-//                    _borderState.value = BorderState.Neutral
+                    _borderState.value = BorderState.Red
+                    delay(3000)
+                    _borderState.value = BorderState.Neutral
 //                    _swipeText.value = ""
-//                } else {
+                } else {
 //                    _swipeText.value = "Failed to deny: ${response.code()}"
-//                    Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
-////                    _uiState.value = GateUiState.Idle
-//                }
-//
-//            } catch (e: Exception) {
+                    Log.e("GateViewModel", "API error: ${response.errorBody()?.string()}")
+                }
+
+            } catch (e: Exception) {
 //                _swipeText.value = "Error sending denial"
-//                Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
-////                _uiState.value = GateUiState.Idle
-//            }
-//        }
-//    }
+                Log.e("GateViewModel", "Network error: ${e.localizedMessage}")
+            }
+        }
+    }
 
     /**
      * Start listening to SSE (Waggledance) stream for messages
@@ -256,6 +215,11 @@ class GateViewModel(
         startConnectionMonitor()
     }
 
+    /**
+     * Monitors the SSE (Waggledance) connection status and retries session initialization if the connection is lost
+     * - Periodically checks if the SSE (Waggledance) connection is active every 10 seconds
+     * - If disconnected and not already retrying, schedule a session retry
+     */
     private fun startConnectionMonitor() {
         if (monitorJob?.isActive == true) return
 
@@ -305,11 +269,11 @@ class GateViewModel(
                             isBlacklisted = isBlacklisted
                         )
                     )
+                    if (isBlacklisted) {
+                        _borderState.value = BorderState.Red
+                    }
 
                     enQueue(response)
-                    Log.d("QueueManager", "Queue: ${queue.value}")
-//                    _uiState.value = GateUiState.PlayerWaiting(response)
-//                    Log.d("GateViewModel", "UI State: ${_uiState.value}")
 //                    NotificationHelper.notifyNewPlayer(appContext, response)
                 }
             }
@@ -330,7 +294,6 @@ class GateViewModel(
             val gatePosition = gate.get("position")?.asString.orEmpty()
             val gateState = gate.get("state")?.asString.orEmpty()
 
-//            Check if state has changed
             if (lastGateStates[gatePosition] == gateState) {
                 return@forEach
             }
@@ -341,14 +304,12 @@ class GateViewModel(
                 GateState.ACCESS_GRANTED.value, GateState.ACCESS_DENIED.value -> {
                     val isGatePositionInQueue = _queue.value.any { it.position == gatePosition }
                     if (isGatePositionInQueue) {
-                        Log.d("GATE", "ACCEPT/DENY: Player at position $gatePosition accepted/denied: $payload")
                         removeByPosition(gatePosition)
                     }
                 }
                 GateState.READY_FOR_USE.value -> {
                     val isGatePositionInQueue = _queue.value.any { it.position == gatePosition }
                     if (isGatePositionInQueue) {
-                        Log.d("GATE", "IDLE: Player at position $gatePosition removed from queue: $payload")
                         removeByPosition(gatePosition)
                     }
                 }
@@ -371,10 +332,6 @@ class GateViewModel(
                             Log.d("GATE", "ACCEPT/DENY: Player at position $gatePosition accepted/denied: $payload")
                             removeByPosition(gatePosition)
                         }
-//                        viewModelScope.launch {
-//                            delay(300) // delay in milliseconds
-//                            _uiState.value = GateUiState.Idle
-//                        }
                     }
                     GateState.READY_FOR_USE.value -> {
                         val isGatePositionInQueue = _queue.value.any { it.position == gatePosition }
@@ -382,15 +339,10 @@ class GateViewModel(
                             Log.d("GATE", "IDLE: Player at position $gatePosition removed from queue: $payload")
                             removeByPosition(gatePosition)
                         }
-//                        viewModelScope.launch {
-//                            delay(300) // delay in milliseconds
-//                            _uiState.value = GateUiState.Idle
-//                        }
                     }
                 }
             }
         } else {
-            Log.d("RFU", "Gates are reade for use:  ${_queue.value}")
             clearQueue()
         }
     }
