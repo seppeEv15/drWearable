@@ -1,0 +1,256 @@
+package com.drgt.drwearable.presentation.ui.screens.gate
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight.Companion.Bold
+import androidx.compose.ui.text.font.FontWeight.Companion.W800
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.wear.compose.material.Scaffold
+import androidx.wear.compose.material.Text
+import com.drgt.drwearable.R
+import com.drgt.drwearable.presentation.theme.DrWearableTheme
+import com.drgt.drwearable.presentation.theme.GreenGradient
+import com.drgt.drwearable.presentation.theme.Grey
+import com.drgt.drwearable.presentation.theme.PurpleGradient
+import com.drgt.drwearable.presentation.theme.RedGradient
+import com.drgt.drwearable.presentation.ui.AppViewModelProvider
+import com.drgt.drwearable.presentation.ui.components.TimeTextWithSeconds
+import com.drgt.drwearable.presentation.ui.components.VerticalSwipeDetector
+import com.drgt.drwearable.presentation.ui.components.gate.PlayerImageOverlay
+import kotlinx.coroutines.delay
+
+@Composable
+fun GateScreen(viewModel: GateViewModel = viewModel(factory = AppViewModelProvider.Factory)) {
+    val queue by viewModel.queue.collectAsState()
+    val isConnected by viewModel.isSseConnected.collectAsState()
+    val borderState by viewModel.borderState.collectAsState()
+    val lastHandledPlayer by viewModel.lastHandledPlayer.collectAsState()
+
+    var showDisconnectedScreen by remember { mutableStateOf(false) }
+
+    val borderBrush = when (borderState) {
+        BorderState.Green -> GreenGradient
+        BorderState.Neutral -> PurpleGradient
+        BorderState.Red -> RedGradient
+    }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { isConnected }
+            .collect { connected ->
+                if (!connected) {
+                    delay(5000) // wait 5 seconds
+                    if (!isConnected) {
+                        showDisconnectedScreen = true
+                    }
+                } else {
+                    showDisconnectedScreen = false
+                }
+            }
+    }
+
+    DrWearableTheme {
+        Scaffold(
+            timeText = {
+                TimeTextWithSeconds(isConnected)
+            }
+        ) {
+            if (showDisconnectedScreen) {
+                DisconnectedScreen()
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .border(
+                            width = 3.dp,
+                            brush = borderBrush,
+                            shape = CircleShape
+                        )
+                ) {
+                    VerticalSwipeDetector(
+                        onSwipeUp = {
+                            if (queue.isNotEmpty()) {
+                                if (queue[0].player.isBlacklisted) {
+                                    viewModel.setStatusDenied()
+                                } else {
+                                    viewModel.setStatusAccepted()
+                                }
+                            }
+                        },
+                        onSwipeDown = {
+                            if (queue.isNotEmpty()) {
+                                viewModel.setStatusDenied()
+                            }
+                        }
+                    ) {
+                        if (lastHandledPlayer != null) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0x00000000))
+                                    .padding(2.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Spacer(modifier = Modifier.height(25.dp))
+                                Image(
+                                    painter = painterResource(
+                                        id = if (lastHandledPlayer!!.isAccepted) {
+                                            R.drawable.account_user_green
+                                        } else {
+                                            if (lastHandledPlayer!!.isBlacklisted) {
+                                                R.drawable.new_user_block
+                                            } else {
+                                                R.drawable.account_user_red
+                                            }
+                                        }
+                                    ),
+                                    contentDescription = "Player silhouette",
+                                    modifier = Modifier.size(60.dp)
+                                )
+                                BasicText(
+                                    text = if (lastHandledPlayer!!.isAccepted) "Accepted ${lastHandledPlayer!!.fullName}" else "Denied ${lastHandledPlayer!!.fullName}",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                                    style = TextStyle(
+                                        brush = if (lastHandledPlayer!!.isAccepted) GreenGradient else RedGradient,
+                                        fontSize = 16.sp,
+                                        fontWeight = W800,
+                                        textAlign = TextAlign.Center
+                                    ),
+                                )
+                                Spacer(modifier = Modifier.height(25.dp))
+                                Image(
+                                    painter = painterResource(id = R.drawable.drgt),
+                                    contentDescription = "drgt logo",
+                                    modifier = Modifier.size(width = 50.dp, height = 20.dp)
+                                )
+                            }
+                        } else {
+                            if (queue.isNotEmpty()) {
+                                val currentPlayer = queue[0].player
+                                val fullName = currentPlayer.firstName + " " + currentPlayer.lastName
+                                PlayerImageOverlay(imageBitmap = currentPlayer.image.asImageBitmap(), isBlacklisted = currentPlayer.isBlacklisted)
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color(0x00000000))
+                                        .padding(2.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        BasicText(
+                                            text = fullName,
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .padding(bottom = 40.dp),
+                                            style = TextStyle(
+                                                color = Color.White,
+                                                fontSize = 14.sp,
+                                                textAlign = TextAlign.Center,
+                                                fontFamily = FontFamily.SansSerif
+                                            )
+                                        )
+                                        if (currentPlayer.isBlacklisted) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomCenter)
+                                                    .padding(bottom = 20.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Image(
+                                                    painter = painterResource(id = R.drawable.warning_svgrepo_com),
+                                                    contentDescription = "Blacklist Icon",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.size(4.dp))
+                                                Text(
+                                                    text = "Blacklisted",
+                                                    style = TextStyle(
+                                                        color = Color.White,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = Bold,
+                                                        textAlign = TextAlign.Center,
+                                                        fontFamily = FontFamily.SansSerif
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color(0x00000000))
+                                        .padding(2.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Spacer(modifier = Modifier.height(25.dp))
+                                    Image(
+                                        painter = painterResource(
+                                            id = R.drawable.account_user_default
+                                        ),
+                                        contentDescription = "Player silhouette",
+                                        modifier = Modifier.size(60.dp)
+                                    )
+                                    BasicText(
+                                        text = "No player waiting",
+                                        modifier = Modifier.padding(top = 4.dp),
+                                        style = TextStyle(
+                                            color = Grey,
+                                            fontSize = 16.sp,
+                                            fontWeight = W800,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(25.dp))
+                                    Image(
+                                        painter = painterResource(id = R.drawable.drgt),
+                                        contentDescription = "drgt logo",
+                                        modifier = Modifier.size(width = 50.dp, height = 20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

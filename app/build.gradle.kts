@@ -16,15 +16,15 @@ plugins {
 }
 
 android {
-    namespace = "com.example.drwearable"
+    namespace = "com.drgt.drwearable"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.drwearable"
+        applicationId = "com.drgt.drwearable"
         minSdk = 33
         targetSdk = 34 // Updated to 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.15.0"
         vectorDrawables {
             useSupportLibrary = true
         }
