@@ -9,7 +9,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Add || Updated || Deleted || Refactor || Fix
 
-- 
+
+## [0.16.0] - 2025-07-04
+
+### Add
+
+- Changelog
+
+### Updated
+
+- package name from 'example' to 'drgt'
 
 ## [0.15.0] - 2025-07-02
 
