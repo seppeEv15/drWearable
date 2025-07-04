@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Add
 
-- Changelog
+- CHANGELOG.md
+- README.md
 
 ### Updated
 
