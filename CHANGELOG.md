@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Add
 
 - Support for live captured photos
-- UI state finalized for acceptin/denying players
+- UI state finalized for accepting/denying players
 
 ### Remove
 
@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Refactor
 
-- Rework player access handeling and code cleanup
+- Rework player access handling and code cleanup
 
 ## [0.14.0] - 2025-07-01
 
