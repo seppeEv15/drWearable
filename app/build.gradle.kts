@@ -86,6 +86,7 @@ dependencies {
     implementation(libs.navigation.runtime.ktx)
     implementation(libs.compose.material3)
     implementation(libs.core)
+    implementation(libs.firebase.crashlytics.buildtools)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)
