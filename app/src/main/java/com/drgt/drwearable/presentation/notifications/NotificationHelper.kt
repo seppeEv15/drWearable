@@ -15,7 +15,7 @@ import com.drgt.drwearable.presentation.MainActivity
 import com.drgt.drwearable.presentation.data.model.PlayerResponse
 
 object NotificationHelper {
-    private const val CHANNEL_ID = "player_waiting_channel"
+    const val CHANNEL_ID = "player_waiting_channel"
 
     fun createNotificationChannel(context: Context) {
         val channel = NotificationChannel(

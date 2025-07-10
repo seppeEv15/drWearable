@@ -16,6 +16,7 @@ import com.drgt.drwearable.presentation.data.model.GateState
 import com.drgt.drwearable.presentation.data.model.LastPlayer
 import com.drgt.drwearable.presentation.data.model.Player
 import com.drgt.drwearable.presentation.data.model.PlayerResponse
+import com.drgt.drwearable.presentation.notifications.NotificationHelper
 import com.google.gson.JsonNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -293,7 +294,7 @@ class GateViewModel(
                     }
 
                     enQueue(response)
-//                    NotificationHelper.notifyNewPlayer(appContext, response)
+                    NotificationHelper.notifyNewPlayer(appContext, response)
                 }
             }
         }
